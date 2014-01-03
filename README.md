@@ -18,8 +18,8 @@ Because the data on youth characteristics and outcomes are strongly protected by
 To read more about this project, please visit sections on:
 * Overview and History of the Collaborative
 * Charter for the Collaborative
-* The Collaborative's Google Drive folders, used to store notes, agendas, FAQs (requires permission)
-* The Collaborative's IdeaScale page, used to set priorities for project development (requires permission)
-* The Collaborative's Trello board for voting on issues requiring consensus (requires permission)
+* The Collaborative's [Google Drive folders](https://drive.google.com/#folders/0B6Z01JezxTRUWjhLaXJIOEJlODA), used to store notes, agendas, FAQs (requires permission)
+* The Collaborative's [IdeaScale page](http://ostcollab.ideascale.com/), used to set priorities for project development (requires permission)
+* The Collaborative's [Trello board](https://trello.com/b/w1k2cI8T/chapin-hall-collaborative-group-consensus-board) for voting on issues requiring consensus (requires permission)
 
 <Installation guidance, tutorials, and dependencies for R>
