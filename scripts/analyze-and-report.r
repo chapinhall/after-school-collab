@@ -21,14 +21,7 @@
   runDescGraphs    <- 0
   runRegs          <- 1
 
-  if (useScrambledData==1) {
-    myGraphOut <- paste0(myDir,"/demos/") 
-    scramInd <- "_DEMO"
-  } else {
-    myGraphOut <- paste0(myDir,"/output/")
-    scramInd <- ""
-}
-  
+
   library(plyr)
   library(reshape)
   library(ggplot2)
@@ -48,9 +41,21 @@
   myWidth <- 2800
   myHeight <- 2100
 
-
-
 ## Load data
+
+  if (useScrambledData==1) {
+    load(paste0(dataPath,"Scram.Rda"))
+    myData <- Scram
+    rm(Scram)
+    myGraphOut <- paste0(myDir,"demos/") 
+    scramInd <- "_DEMO"
+  } else {
+    load(paste0(dataPath,"subset_CpsYss_PP13.Rda"))
+    myGraphOut <- paste0(myDir,"output/")
+    scramInd <- ""
+}
+
+  attach(myData)
 
   load(paste0(dataPath,"ctsMean_byAny",scramInd,".Rda"))
   load(paste0(dataPath,"ctsMean_byAnyGr",scramInd,".Rda"))
@@ -61,6 +66,8 @@
   load(paste0(dataPath,"ctsMean_byAnySchPeer",scramInd,".Rda"))
   load(paste0(dataPath,"ctsMean_bySiteSchPeer",scramInd,".Rda"))
 
+  
+
 #---------------------------------------#
 #---------------------------------------#
 ### Graphs for Non-Org, Org, and Site ###
@@ -69,10 +76,10 @@
   
 if (1==runDescGraphs) {
   
-  for (s in c("All", levels(fShortSite))) {
-    print("Running graphs for " %&% s)
+  for (s in c("All", levels(fYssSite))) {
+    print(paste("Running graphs for",s))
     
-    dir.create(file.path(myOutDir, s), showWarnings = F)
+    dir.create(file.path(myGraphOut, s, fsep=""), showWarnings = F)
     
     ctsPlotDataGr <- ctsMean_byAnyGr
     ctsPlotData <- rbind(ctsMean_byAny, ctsMean_byAnySchPeer[ctsMean_byAnySchPeer$Site == "Org Alpha\nSch-Based Peers",])

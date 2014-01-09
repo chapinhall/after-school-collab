@@ -83,7 +83,7 @@ Scram <- Scram[reorder,]
       Scram$fAnyYss  <- factor(Scram$UsedYss, levels=c(0,1), labels=c("Non-Org Alpha", "Org Alpha"))
       Scram$fShortSite <- factor(Scram$cYssSite)
  
-## Clear memory and save scrambled data to file
-      rm(Pre, PreRename)
+## Clear memory and save data to file
       save(Scram, file = paste0(dataPath,"Scram.Rda"))
+      rm(Pre, PreRename)
     
