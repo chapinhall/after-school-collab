@@ -36,7 +36,7 @@
                 "Stud_X", "Stud_Y", grep("Tract_", cNames, value=T), "Stud_CcaNum", "Stud_CcaName",
                 "fYssType", "fYssSite", "fAnyYss", "UsedYss") #"Pct_Absent", "Pct_Absent_pre",
       myData <- CpsYss_PP13[, keepVars]
-	myGraphOut <- paste0(myDir,"/output/")
+	  myGraphOut <- paste0(myDir,"/output/")
       rm(CpsYss_PP13)} 
 
   attach(myData)
@@ -79,6 +79,8 @@
 
   x <- CatCalc(cbind(fAnyYss,mathpl,readpl))
   z <- aggregate(cbind(mathpl, readpl), list(fAnyYss), CatCalc)
+
+  ds <- function(x){ deparse(substitute(x))}
     
   myFun <- function(v){
     table <- as.data.frame(prop.table(table(v)))
@@ -154,14 +156,23 @@
   ### SAVE RESULTS
   #---------------
   
-  save(ctsMean_byAny,    file = "./data/preprocessed-data/ctsMean_byAny.Rda")
-  save(ctsMean_byAnyGr,  file = "./data/preprocessed-data/ctsMean_byAnyGr.Rda")
-  save(ctsMean_bySite,   file = "./data/preprocessed-data/ctsMean_bySite.Rda")
-  save(ctsMean_bySiteGr, file = "./data/preprocessed-data/ctsMean_bySiteGr.Rda")
-  save(ctsMean_bySch,    file = "./data/preprocessed-data/ctsMean_bySch.Rda")
-  save(ctsMean_bySchGr,  file = "./data/preprocessed-data/ctsMean_bySchGr.Rda")
-  save(ctsMean_byAnySchPeer,  file = "./data/preprocessed-data/ctsMean_byAnySchPeer.Rda")
-  save(ctsMean_bySiteSchPeer, file = "./data/preprocessed-data/ctsMean_bySiteSchPeer.Rda")
-  
-
+if (useScrambledData==1) { 
+  save(ctsMean_byAny,    file = paste0(dataPath,"ctsMean_byAny","_DEMO.Rda")
+  save(ctsMean_byAnyGr,  file = paste0(dataPath,"ctsMean_byAnyGr","_DEMO.Rda")
+  save(ctsMean_bySite,   file = paste0(dataPath,"ctsMean_bySite","_DEMO.Rda")
+  save(ctsMean_bySiteGr, file = paste0(dataPath,"ctsMean_bySiteGr","_DEMO.Rda")
+  save(ctsMean_bySch,    file = paste0(dataPath,"ctsMean_bySch","_DEMO.Rda")
+  save(ctsMean_bySchGr,  file = paste0(dataPath,"ctsMean_bySchGr","_DEMO.Rda")
+  save(ctsMean_byAnySchPeer,  file = paste0(dataPath,"ctsMean_byAnySchPeer","_DEMO.Rda")
+  save(ctsMean_bySiteSchPeer, file = paste0(dataPath,"ctsMean_bySiteSchPeer","_DEMO.Rda")
+} else {  
+  save(ctsMean_byAny,    file = paste0(dataPath,"ctsMean_byAny.Rda")
+  save(ctsMean_byAnyGr,  file = paste0(dataPath,"ctsMean_byAnyGr.Rda")
+  save(ctsMean_bySite,   file = paste0(dataPath,"ctsMean_bySite.Rda")
+  save(ctsMean_bySiteGr, file = paste0(dataPath,"ctsMean_bySiteGr.Rda")
+  save(ctsMean_bySch,    file = paste0(dataPath,"ctsMean_bySch.Rda")
+  save(ctsMean_bySchGr,  file = paste0(dataPath,"ctsMean_bySchGr.Rda")
+  save(ctsMean_byAnySchPeer,  file = paste0(dataPath,"ctsMean_byAnySchPeer.Rda")
+  save(ctsMean_bySiteSchPeer, file = paste0(dataPath,"ctsMean_bySiteSchPeer.Rda")
+}
 

@@ -3,32 +3,31 @@
 # MASTER FILE FOR DATA ANALYSIS AND REPORTING # 
 # Preliminary Analysis with ggplot2           #
 #                                             #
-# Authors: Nick Mader and Ian Matthew Morey   #  
+# Authors: Nick Mader, Ian Matthew Morey,	    #
+#			and Emily Wiegand		    #  
 #---------------------------------------------#
 #---------------------------------------------#
 
-#------------------#
-#------------------#
-# Set up workspace #
-#------------------#
-#------------------#
+
+## Set up workspace and designate/update file locations
 
   rm(list=ls())
-  options("error")
-  "%&%" <- function(...){paste(..., sep="")}
-  ds <- function(x){ deparse(substitute(x))}
-  comment <- function(...){}
-  
   #myDir <- "/projects/Integrated_Evaluation_Youth_Support_Services/"
-  myDir <- "H:/Integrated Evaluation Project for YSS Providers"
+  myDir <- "H:/Integrated Evaluation Project for YSS Providers/"
   setwd(myDir)
+  dataPath <- "./data/preprocessed-data/" # File path to locate and save data
 
-  reScrambleData   <- 0
-    useScrambledData <- 1
-  updateDescCalcs  <- 0
+  useScrambledData <- 0
   runDescGraphs    <- 0
   runRegs          <- 1
-  
+
+  if (useScrambledData==1) {
+    myGraphOut <- paste0(myDir,"/demos/") 
+    scramInd <- "_DEMO"
+  } else {
+    myGraphOut <- paste0(myDir,"/output/")
+    scramInd <- ""
+}
   
   library(plyr)
   library(reshape)
@@ -49,229 +48,18 @@
   myWidth <- 2800
   myHeight <- 2100
 
-#-----------------------------------
-### Read Data and Process as Desired
-#-----------------------------------
 
-  try(detach(CpsYss_PP13), silent=T)
-  load("./data/preprocessed-data/CpsYss_PP13.Rda")
-  #load("./data/preprocessed-data/CpsYss_PP.Rda")
-  #CpsYss_PP13 <- CpsYss_PP[CpsYss_PP$SchYear == 2013,]
-  #save(CpsYss_PP13, file = "./data/preprocessed-data/CpsYss_PP13.Rda")
-  cNames <- colnames(CpsYss_PP13)
-  keepVars <- c("sid", "SchYear", "Stud_Tract", "schlid", "fGradeLvl", "grade_level",
-                "Female", "disab", "fRace", grep("bRace", cNames, value=T), grep("bLunch", cNames, value=T),
-                "readss", "mathss", "readgain", "mathgain", "readpl", "mathpl", "mathpl_ME", "readpl_ME", "mathss_pre", "readss_pre",
-                "Pct_Attend", "Pct_Attend_pre", "bOnTrack", "bHsGrad",
-                "Stud_X", "Stud_Y", grep("Tract_", cNames, value=T), "Stud_CcaNum", "Stud_CcaName",
-                "fYssType", "fYssSite", "fAnyYss", "UsedYss") #"Pct_Absent", "Pct_Absent_pre",
-                
-  CpsYss_PP13 <- CpsYss_PP13[, keepVars]
 
-  if (1 == reScrambleData) {
-    
-    # Change output and data
-      Scram <- CpsYss_PP13
-      myN <- nrow(Scram)
+## Load data
 
-    
-    # Randomly resample from the data set
-      reorder <- sample(myN, myN, replace = T)
-      Scram <- Scram[reorder,]
-    
-    # Randomly reassign treatment
-      # Do this for a population equivalent to x% of the 
-    
-      pctToReassign <- 0.2
-      nToReassign <- round(pctToReassign*(sum(Scram$UsedYss)))
-      nCps <- nrow(Scram[Scram$UsedYss==0,]); CpsToReassign <- sample(1:nCps, nToReassign)
-      nYss <- nrow(Scram[Scram$UsedYss==1,]); YssToReassign <- sample(1:nYss, nToReassign)
-      
-      Pre <- Scram
-      Scram$UsedYss[Pre$UsedYss==0][CpsToReassign] <- 1
-      Scram$UsedYss[Pre$UsedYss==1][YssToReassign] <- 0
-      
-      scramCheck <- sum(1*(Pre$UsedYss != Scram$UsedYss))
-      
-    # Change assigned names of treatments
-      
-      # Get names of sites
-      Scram$cYssSite <- as.character(Scram$fShortSite)
-      siteNames <- unique(Scram$cYssSite)
-      siteNames <- siteNames[-which(siteNames %in% "None of the Above")]
-      
-      # Reassign site names 
-      Scram$cYssSite[Pre$UsedYss==0][CpsToReassign] <- sample(siteNames, nToReassign, replace = T)
-      Scram$cYssSite[Pre$UsedYss==1][YssToReassign] <- "None of the Above"
-    
-    # Rename all treatments
-      PreRename <- Scram
-      for (sn in sort(siteNames)) {
-        siteIndex <- which(siteNames == sn)
-        Scram$cYssSite[Scram$cYssSite == sn] <- LETTERS[siteIndex]
-      }
-      
-      Scram$fAnyYss  <- factor(Scram$UsedYss, levels=c(0,1), labels=c("Non-Org Alpha", "Org Alpha"))
-      Scram$fShortSite <- factor(Scram$cYssSite)
-      
-      rm(Pre, PreRename)
-      save(Scram, file = "./data/preprocessed-data/Scram.Rda")
-    
- }
-
-  try(detach(myData), silent=T)
-  if (useScrambledData==1) {
-    load("./data/preprocessed-data/Scram.Rda")
-    myData <- Scram
-    rm(Scram)
-    myOutDir <- myDir %&% "/demos/"
-    myGraphOut <- myOutDir
-  } else {
-    myData <- CpsYss_PP13
-    myOutDir <- myDir %&% "/output/"
-    myGraphOut <- myOutDir
-  } 
-  attach(myData)
-  rm(CpsYss_PP13)
-
-  
-#--------------------------------------------#
-#--------------------------------------------#
-# Run And Store All Descriptive Summary Data #
-#--------------------------------------------#
-#--------------------------------------------#
-  
-if (1 == updateDescCalcs) {
-  
-  ### SELECT VARIABLES FOR SUMMARY
-  
-    cNames <- colnames(myData)
-    ctsVars <- c("mathss", "readss", "mathgain", "readgain", "mathpl_ME", "readpl_ME", "Pct_Attend", grep("bRace", cNames, value=T), grep("bLunch", cNames, value=T), grep("Tract_", cNames, value=T))  
-    catVars <- c("mathpl", "readpl", "fGradeLvl", "fRace")
-    #ctsVars <- c("mathss", "readss")
-  
-  ### CALCULATE SUMMARY STATISTICS
-    
-    # Continuous measures
-    
-      ctsMean_byAny     <- aggregate(myData[, ctsVars], list(fAnyYss),               mean, na.rm = T)
-      ctsMean_byAnyGr   <- aggregate(myData[, ctsVars], list(fAnyYss, fGradeLvl),    mean, na.rm = T)
-      ctsMean_bySite    <- aggregate(myData[, ctsVars], list(fShortSite),            mean, na.rm = T)
-      ctsMean_bySiteGr  <- aggregate(myData[, ctsVars], list(fShortSite, fGradeLvl), mean, na.rm = T)
-      ctsMean_bySch     <- aggregate(myData[, ctsVars], list(schlid),                mean, na.rm = T)
-      ctsMean_bySchGr   <- aggregate(myData[, ctsVars], list(schlid, fGradeLvl),     mean, na.rm = T)
-      
-      colnames(ctsMean_byAny)[1]    <- "Site"; ctsMean_byAny$Grade <- "All"
-      colnames(ctsMean_byAnyGr)[1]  <- "Site"; colnames(ctsMean_byAnyGr)[2] <- "Grade"
-      colnames(ctsMean_bySite)[1]   <- "Site"; ctsMean_bySite$Grade <- "All"
-      colnames(ctsMean_bySiteGr)[1] <- "Site"; colnames(ctsMean_bySiteGr)[2] <- "Grade"
-      colnames(ctsMean_bySch)[1]    <- "Site"; ctsMean_bySch$Grade <- "All"
-      colnames(ctsMean_bySchGr)[1]  <- "Site"; colnames(ctsMean_bySchGr)[2] <- "Grade"
-    
-    # Categorical measures
-    
-      CatCalc <- function(v){
-        table <- as.data.frame(prop.table(table(fAnyYss, myData[, v]), 1))
-        table[, v] <- v %&% "_" %&% table[, 2]
-        #out <- cast(table, formula = as.formula("fAnyYss ~ " %&% v), value="Freq")
-        return(table)
-      }
-      x <- CatCalc(cbind(mathpl, readpl))
-      z <- aggregate(cbind(mathpl, readpl), list(fAnyYss), CatCalc)
-    
-      myFun <- function(v){
-        table <- as.data.frame(prop.table(table(v)))
-        #table[, ds(v)] <- ds(v) %&% "_" %&% table[, 1]
-        #out <- cast(table, formula = as.formula(". ~ " %&% ds(v)), value="Freq")
-        #return(out)
-        return(table)
-      }
-      z <- aggregate(cbind(mathpl, readpl), list(fAnyYss), CatCalc2)
-    
-      simplerFun <- function(v){
-        x <- prop.table(table(v))        
-        dimnames(x)$v <- dimnames(x)$v
-      }
-      aggregate(cbind(mathpl, readpl), list(fAnyYss), simplerFun)
-    
-    GrDist <- table(fAnyYss, fGradeLvl)
-    GrDistProp <- prop.table(GrDist, 1)  
-    GrDistPropL <- as.data.frame(GrDistProp)  
-    if (s != "All") {
-      p <- prop.table(table(fGradeLvl[fShortSite==s]))
-      df <- data.frame(cbind(s, data.frame(p)))
-      colnames(df) <- colnames(GrDistPropL)
-      GrDistPropL <- rbind(GrDistPropL, df)
-    }
-  
-  ### CREATE AVERAGES CHARACTERISTICS OF REPRESENTATIVE PEERS IN SAME SCHOOLS
-  
-    # Get Column %s
-    SchProp_bySite <- prop.table(table(schlid, fShortSite), 2) # Get Column %s
-    SchProp_byAny  <- prop.table(table(schlid, fAnyYss), 2) # Get Column %s
-    
-    # Create function to take average conditional on site designation and variable
-    PeerAvg_forSV <- function(s, v) {
-      nonNAN <- !is.na(ctsMean_bySch[, v])
-      cbind(s, v, weighted.mean(ctsMean_bySch[nonNAN, v], PropData[nonNAN, s]))
-    }  
-    
-    ### Calculate Averages by Yss Site ###
-    
-    PropData <- SchProp_bySite
-    ByLvls <- levels(fShortSite)
-    PeerAvgs_bySite <- t(mapply(PeerAvg_forSV,
-                                           rep(ByLvls,  length(ctsVars)),
-                                           rep(ctsVars, each=length(ByLvls))
-                                          ) )
-    rownames(PeerAvgs_bySite) <- NULL
-    PeerAvgs_bySite <- data.frame(PeerAvgs_bySite)
-    PeerAvgs_bySite$X3 <- as.numeric(levels(PeerAvgs_bySite$X3)[PeerAvgs_bySite$X3])
-    ctsMean_bySiteSchPeer <- cast(PeerAvgs_bySite, X1 ~ X2, value = "X3")
-    colnames(ctsMean_bySiteSchPeer)[1] <- "Site"
-    ctsMean_bySiteSchPeer$Site <- ctsMean_bySiteSchPeer$Site %&% "\nSch-Based Peers"
-    ctsMean_bySiteSchPeer$Grade <- "All"
-    
-    ### Calculate Averages by Any Yss ###
-    
-    PropData <- SchProp_byAny
-    ByLvls <- levels(fAnyYss)
-    PeerAvgs_byAny <- t(mapply(PeerAvg_forSV,
-                                           rep(ByLvls,  length(ctsVars)),
-                                           rep(ctsVars, each=length(ByLvls))
-                                          ) )
-    rownames(PeerAvgs_byAny) <- NULL
-    PeerAvgs_byAny <- data.frame(PeerAvgs_byAny)
-    PeerAvgs_byAny$X3 <- as.numeric(levels(PeerAvgs_byAny$X3)[PeerAvgs_byAny$X3])
-    ctsMean_byAnySchPeer <- cast(PeerAvgs_byAny, X1 ~ X2, value = "X3")
-    colnames(ctsMean_byAnySchPeer)[1] <- "Site"
-    ctsMean_byAnySchPeer$Site <- ctsMean_byAnySchPeer$Site %&% "\nSch-Based Peers"
-    ctsMean_byAnySchPeer$Grade <- "All"
-  
-  #---------------
-  ### SAVE RESULTS
-  #---------------
-  
-    save(ctsMean_byAny,    file = "./data/preprocessed-data/ctsMean_byAny.Rda")
-    save(ctsMean_byAnyGr,  file = "./data/preprocessed-data/ctsMean_byAnyGr.Rda")
-    save(ctsMean_bySite,   file = "./data/preprocessed-data/ctsMean_bySite.Rda")
-    save(ctsMean_bySiteGr, file = "./data/preprocessed-data/ctsMean_bySiteGr.Rda")
-    save(ctsMean_bySch,    file = "./data/preprocessed-data/ctsMean_bySch.Rda")
-    save(ctsMean_bySchGr,  file = "./data/preprocessed-data/ctsMean_bySchGr.Rda")
-    save(ctsMean_byAnySchPeer,  file = "./data/preprocessed-data/ctsMean_byAnySchPeer.Rda")
-    save(ctsMean_bySiteSchPeer, file = "./data/preprocessed-data/ctsMean_bySiteSchPeer.Rda")
-  
-} else {
-  load("./data/preprocessed-data/ctsMean_byAny.Rda")
-  load("./data/preprocessed-data/ctsMean_byAnyGr.Rda")
-  load("./data/preprocessed-data/ctsMean_bySite.Rda")
-  load("./data/preprocessed-data/ctsMean_bySiteGr.Rda")
-  load("./data/preprocessed-data/ctsMean_bySch.Rda")
-  load("./data/preprocessed-data/ctsMean_bySchGr.Rda")
-  load("./data/preprocessed-data/ctsMean_byAnySchPeer.Rda")
-  load("./data/preprocessed-data/ctsMean_bySiteSchPeer.Rda")
-}
-
+  load(paste0(dataPath,"ctsMean_byAny",scramInd,".Rda"))
+  load(paste0(dataPath,"ctsMean_byAnyGr",scramInd,".Rda"))
+  load(paste0(dataPath,"ctsMean_bySite",scramInd,".Rda"))
+  load(paste0(dataPath,"ctsMean_bySiteGr",scramInd,".Rda"))
+  load(paste0(dataPath,"ctsMean_bySch",scramInd,".Rda"))
+  load(paste0(dataPath,"ctsMean_bySchGr",scramInd,".Rda"))
+  load(paste0(dataPath,"ctsMean_byAnySchPeer",scramInd,".Rda"))
+  load(paste0(dataPath,"ctsMean_bySiteSchPeer",scramInd,".Rda"))
 
 #---------------------------------------#
 #---------------------------------------#
@@ -361,19 +149,17 @@ if (1==runDescGraphs) {
       colnames(df) <- colnames(DemRcPropL)
       DemRcPropL <- rbind(DemRcPropL, df)
     }
-      
+    
     png(file=myGraphOut %&% "CpsVsOrg_RaceEth_AnyYss.png", res = myRes, width = myWidth, height = myHeight)
       Plot_RaceEth <- ggplot(data=DemRcPropL, aes(x=fRace, y=Freq, fill=fAnyYss)) +
         geom_bar(stat="identity", position="dodge", width=0.7) +
         ggtitle("Comparison of Race/Ethnicity") +
         ylab("% in Each Race/Eth Group") +
         scale_y_continuous(labels = percent) +
-        theme(axis.title.x=element_blank(), axis.title.y=element_text(size = 8)) +
-        theme(legend.position="bottom") + 
-        scale_fill_manual(values=useFill) +
-        guides(fill=guide_legend(title=NULL))
+        theme(axis.title.x=element_blank(), axis.title.y=element_text(size = 8))
       print(Plot_RaceEth)
     dev.off()
+    
     
     
     # Neighborhood characteristics
@@ -750,7 +536,7 @@ if (1 == runRegs) {
         
         print("Running depvar " %&% depVar %&% ", and trtVar " %&% trtVar)
         
-        sGain <- depVar %&% " - " %&% depVar %&% "_pre"
+        sGain <- paste0(depVar, " - ", depVar, "_pre")
         regData <- useData[!is.na(useData[,depVar]), ]
         adjReg  <- summary(lm(as.formula(depVar   %&% " ~ bLunch_F + bLunch_R + fRace + Female + fGradeLvl + mathss_pre + readss_pre + Pct_Attend_pre + " %&% trtVar), data = regData))
         
@@ -758,7 +544,7 @@ if (1 == runRegs) {
           print("  Generating plot for aggregate effects")
           rawReg  <- summary(lm(as.formula(depVar   %&% " ~ " %&% trtVar), data = regData))
           gainReg <- summary(lm(as.formula(I(sGain) %&% " ~ " %&% trtVar), data = regData))
-          preReg  <- summary(lm(as.formula(depVar   %&% " ~ " %&% trtVar %&% " + " %&% depVar %&% "_pre"), data = regData))
+          preReg  <- summary(lm(as.formula(paste0(depVar, " ~ ", trtVar, " + ", depVar, "_pre")), data = regData))
           Eff <- data.frame(rbind( rawReg$coeff["UsedYss", c("Estimate", "Std. Error")],
                                   gainReg$coeff["UsedYss", c("Estimate", "Std. Error")],
                                    preReg$coeff["UsedYss", c("Estimate", "Std. Error")],
