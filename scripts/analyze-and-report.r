@@ -38,8 +38,10 @@
   bluesFill <- c("#005555", "#000077")
   
   myRes <- 600
-  myWidth <- 2800
-  myHeight <- 2100
+  myWidth <- 4.67 #Using inches (for ggsave)
+  myHeight <- 3.5 #Using inches (for ggsave)
+  #Using pixels: myWidth <- 2800
+  #Using pixels: myHeight <- 2100
 
 ## Load data
 
@@ -47,11 +49,11 @@
     load(paste0(dataPath,"Scram.Rda"))
     myData <- Scram
     rm(Scram)
-    myGraphOut <- paste0(myDir,"demos/") 
+    myOutDir <- paste0(myDir,"demos/") 
     scramInd <- "_DEMO"
   } else {
     load(paste0(dataPath,"subset_CpsYss_PP13.Rda"))
-    myGraphOut <- paste0(myDir,"output/")
+    myOutDir <- paste0(myDir,"output/")
     scramInd <- ""
 }
 
@@ -75,6 +77,54 @@
 #---------------------------------------#
   
 if (1==runDescGraphs) {
+
+### ERW: Experimenting with apply/looping to get rid of graphs.  This isn't working yet.
+  
+  sites <- levels(fYssSite)
+  demographics <- c(fGradeLvl, fRace)
+  demographic_key <- c("fGradeLvl", "fRace")
+  dg_file_names <- c("GradeLvl","RaceEth")
+  demotitles <- c("Distribution of Grade Levels", "Comparison of Race/Ethnicity")
+  xlabs <- c("Grade","")
+  ylabs <- c("% in Each Grade", "% in Each Race/Eth Group")
+  extras <- c("","theme(axis.title.x=element_blank(), axis.title.y=element_text(size = 8))")
+  demo_df <- data.frame(demographic_key, dg_file_names, demotitles, xlabs, ylabs, extras)
+  
+  DemoPlots <- function(site,demographic,dg_file_name,plotTitle,xlab,ylab,extra){
+    plotData <- as.data.frame(prop.table(table(fAnyYss,demographic),1))
+      Plot <- ggplot(data=plotData, aes(x=demographic, y=Freq, fill=fAnyYss)) +
+        geom_bar(stat="identity", position="dodge",width=0.7) +
+        ggtitle(plotTitle) + xlab(xlab) + ylab(ylab) +
+        scale_y_continuous(labels = percent) +
+        theme(legend.position = "bottom") +
+        scale_fill_manual(values = useFillCat) +
+        guides(fill = guide_legend(title=NULL)) + extra)
+    print(Plot)
+    ggsave(filename = paste0(myGraphOut,"CpsVsOrg_",dg_file_name,"_AnyYss.png"), dpi = myRes, width = myWidth, height = myHeight)
+    return(Plot)
+  }
+
+  BySite <- function(site){
+    print(paste("Running graphs for",site))
+    dir.create(file.path(myOutDir,site,fsep=""),showWarnings = F)
+    useFillCat <- c(myfill5, "#885533")
+    useFill <- c(myfill5, "#885533", "BB2800")
+    myGraphOut <- paste0(myOutDir,site,"/")
+    for (d in c(fGradeLvl, fRace)) {
+      DemoPlots(site,as.name(d),demo_df$dg_file_names,demo_df$demotitles,demo_df$xlabs,demo_df$ylabs,demo_df$extras)
+    }
+  }
+  
+ 
+  myGraphOut <- myOutDir
+  Plot_RaceEth <- DemoPlots("South Side YMCA",fRace,"RaceEth","Comparison of Race/Ethnicity","","% in Each Race/Eth Group", theme(axis.title.x=element_blank(), axis.title.y=element_text(size = 8)))
+  Plot_GradeHist <- DemoPlots("South Side YMCA",fGradeLvl,"GradeLvl","Distribution of Grade Levels","Grade","% in Each Grade","")
+  
+ 
+  
+  
+  
+  
   
   for (s in c("All", levels(fYssSite))) {
     print(paste("Running graphs for",s))
@@ -93,13 +143,13 @@ if (1==runDescGraphs) {
       useFillCat <- c(myfill5, "#885533")
       useFill <- c(myfill5, "#885533", "#BB2800")
       #useFill <- c()
-      myGraphOut <- myOutDir %&% s %&% "/"
+      myGraphOut <- paste0(myOutDir,s,"/")
       ctsPlotDataGr <- rbind(ctsPlotDataGr, ctsMean_bySiteGr[ctsMean_bySiteGr$Site==s,])
       
       ctsPlotData   <- rbind(ctsMean_byAny,
-                             ctsMean_bySiteSchPeer[ctsMean_bySiteSchPeer$Site==s %&% "\nSch-Based Peers", ],
+                             ctsMean_bySiteSchPeer[ctsMean_bySiteSchPeer$Site==paste0(s,"\nSch-Based Peers")],
                              ctsMean_bySite[ctsMean_bySite$Site==s, ])
-      ctsPlotData$Site <- factor(ctsPlotData$Site, levels= c("Non-Org Alpha", "Org Alpha", s %&% "\nSch-Based Peers", s)) 
+      ctsPlotData$Site <- factor(ctsPlotData$Site, levels= c("Non-Org Alpha", "Org Alpha", paste0(s,"\nSch-Based Peers"), s)) 
     }
     
     # Grade distribution
@@ -108,13 +158,13 @@ if (1==runDescGraphs) {
     GrDistProp <- prop.table(GrDist, 1)  
     GrDistPropL <- as.data.frame(GrDistProp)  
     if (s != "All") {
-      p <- prop.table(table(fGradeLvl[fShortSite==s]))
+      p <- prop.table(table(fGradeLvl[fYssSite==s]))
       df <- data.frame(cbind(s, data.frame(p)))
       colnames(df) <- colnames(GrDistPropL)
       GrDistPropL <- rbind(GrDistPropL, df)
     }
     
-    png(file = myGraphOut %&% "CpsVsOrg_GradeLvl_AnyYss.png", res = myRes, width = myWidth, height = myHeight)
+    png(file = paste0(myGraphOut,"CpsVsOrg_GradeLvl_AnyYss.png"), res = myRes, width = myWidth, height = myHeight)
       Plot_GradeHist <- ggplot(data=GrDistPropL, aes(x=fGradeLvl, y=Freq, fill=fAnyYss)) + 
         geom_bar(stat="identity", position="dodge", width=0.7) + 
         ggtitle("Distribution of Grade Levels") + 
@@ -130,7 +180,7 @@ if (1==runDescGraphs) {
     #Demographics - % free lunch
     
     ctsPlotData$mLabel <- sprintf("%.1f%%", ctsPlotData$bLunch_FR*100)
-    png(file=myGraphOut %&% "CpsVsOrg_Lunch_AnyYss.png", res = myRes, width = myWidth, height = myHeight)
+    png(file=paste0(myGraphOut,"CpsVsOrg_Lunch_AnyYss.png"), res = myRes, width = myWidth, height = myHeight)
       Plot_Frl <- ggplot(data=ctsPlotData, aes(x=Site, y=bLunch_FR)) +
         geom_bar(stat="identity", position="dodge", aes(fill=Site), width=0.7) +
         geom_text(data=ctsPlotData, aes(x=Site, y=bLunch_FR, label=mLabel, vjust=-1), size = 6) +
@@ -151,13 +201,13 @@ if (1==runDescGraphs) {
     DemRcProp <- prop.table(DemRc, 1)
     DemRcPropL <- as.data.frame(DemRcProp)
     if (s != "All") {
-      p <- prop.table(table(fRace[fShortSite==s]))
+      p <- prop.table(table(fRace[fYssSite==s]))
       df <- data.frame(cbind(s, data.frame(p)))
       colnames(df) <- colnames(DemRcPropL)
       DemRcPropL <- rbind(DemRcPropL, df)
     }
     
-    png(file=myGraphOut %&% "CpsVsOrg_RaceEth_AnyYss.png", res = myRes, width = myWidth, height = myHeight)
+    png(file=paste0(myGraphOut,"CpsVsOrg_RaceEth_AnyYss.png"), res = myRes, width = myWidth, height = myHeight)
       Plot_RaceEth <- ggplot(data=DemRcPropL, aes(x=fRace, y=Freq, fill=fAnyYss)) +
         geom_bar(stat="identity", position="dodge", width=0.7) +
         ggtitle("Comparison of Race/Ethnicity") +
