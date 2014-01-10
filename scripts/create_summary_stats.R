@@ -64,7 +64,14 @@
   colnames(ctsMean_bySiteGr)[1] <- "Site"; colnames(ctsMean_bySiteGr)[2] <- "Grade"
   colnames(ctsMean_bySch)[1]    <- "Site"; ctsMean_bySch$Grade <- "All"
   colnames(ctsMean_bySchGr)[1]  <- "Site"; colnames(ctsMean_bySchGr)[2] <- "Grade"
-    
+
+## Combine summary statistics across different measures into one data frame
+  
+  statDFs <- list(ctsMean_bySiteGr,ctsMean_byAny,ctsMean_byAnyGr,ctsMean_bySite,ctsMean_bySch,ctsMean_bySchGr)
+  siteAsChar <- function(df){df$Site <- as.character(df$Site); return(df)}
+  statDFs2 <- lapply(statDFs,siteAsChar)
+  ctsMeans <- do.call("rbind", statDFs2)
+  
 ## Calculate summary statistics for categorical measures
     
 ###### ERW: Return to rework this section once I see what is needed for the graphs
@@ -157,23 +164,9 @@
   #---------------
   
 if (useScrambledData==1) { 
-  save(ctsMean_byAny,    file = paste0(dataPath,"ctsMean_byAny","_DEMO.Rda"))
-  save(ctsMean_byAnyGr,  file = paste0(dataPath,"ctsMean_byAnyGr","_DEMO.Rda"))
-  save(ctsMean_bySite,   file = paste0(dataPath,"ctsMean_bySite","_DEMO.Rda"))
-  save(ctsMean_bySiteGr, file = paste0(dataPath,"ctsMean_bySiteGr","_DEMO.Rda"))
-  save(ctsMean_bySch,    file = paste0(dataPath,"ctsMean_bySch","_DEMO.Rda"))
-  save(ctsMean_bySchGr,  file = paste0(dataPath,"ctsMean_bySchGr","_DEMO.Rda"))
-  save(ctsMean_byAnySchPeer,  file = paste0(dataPath,"ctsMean_byAnySchPeer","_DEMO.Rda"))
-  save(ctsMean_bySiteSchPeer, file = paste0(dataPath,"ctsMean_bySiteSchPeer","_DEMO.Rda"))
+  save(ctsMeans,    file = paste0(dataPath,"ctsMeans","_DEMO.Rda"))
 } else {  
-  save(ctsMean_byAny,    file = paste0(dataPath,"ctsMean_byAny.Rda"))
-  save(ctsMean_byAnyGr,  file = paste0(dataPath,"ctsMean_byAnyGr.Rda"))
-  save(ctsMean_bySite,   file = paste0(dataPath,"ctsMean_bySite.Rda"))
-  save(ctsMean_bySiteGr, file = paste0(dataPath,"ctsMean_bySiteGr.Rda"))
-  save(ctsMean_bySch,    file = paste0(dataPath,"ctsMean_bySch.Rda"))
-  save(ctsMean_bySchGr,  file = paste0(dataPath,"ctsMean_bySchGr.Rda"))
-  save(ctsMean_byAnySchPeer,  file = paste0(dataPath,"ctsMean_byAnySchPeer.Rda"))
-  save(ctsMean_bySiteSchPeer, file = paste0(dataPath,"ctsMean_bySiteSchPeer.Rda"))
+  save(ctsMeans,    file = paste0(dataPath,"ctsMean_byAny.Rda"))
   save(myData, file = paste0(dataPath, "subset_CpsYss_PP13.Rda"))
 }
 
