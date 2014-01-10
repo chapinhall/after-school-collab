@@ -15,6 +15,9 @@
   setwd(myDir)
   dataPath <- "./data/preprocessed-data/" # File path to locate and save data
 
+  library(reshape)
+  library(plyr)
+  
   useScrambledData <- 0
 
 ## Load selected data
@@ -115,49 +118,63 @@
   }
   
   
-## Create average characteristics for representative peers in same schools
+## Calculate average characteristics for representative peers in same schools
+  # Representative peer group is defined as students who attend the same schools as students in the treatment program.
+  # If 60% of treatment kids attend School H, and 40% attend School Y, 
+  # the appropriate comparison for the mean of the treatment group is not the citywide average, but .6*School H's avg + .4*School Y's.
+  # This is one way of correcting for the fact that partcipants are not broadly representative of the CPS system.
+  # The below code calculates these averages both for the full treatment group and for each site.
   
- # Get Column %s
-  SchProp_bySite <- prop.table(table(schlid, fYssSite), 2) # Get Column %s
-  SchProp_byAny  <- prop.table(table(schlid, fAnyYss), 2) # Get Column %s
-    
- # Create function to take average conditional on site designation and variable
+ # Get school %s by population and treatment status
+  SchProp_bySite <- prop.table(table(schlid, fYssSite), 2) # Percent of students from each school at each site
+  SchProp_byAny  <- prop.table(table(schlid, fAnyYss), 2) # Percent of students from each school in treatment/control
+  PropData <- SchProp_bySite # First analysis will use site averages
+  
+  
+ # Create function that combines "peer" averages by proportionately weighting school averages
   PeerAvg_forSV <- function(s, v) {
     nonNAN <- !is.na(ctsMean_bySch[, v])
     cbind(s, v, weighted.mean(ctsMean_bySch[nonNAN, v], PropData[nonNAN, s]))
-  }  
+  }
     
-  ### Calculate Averages by Yss Site ###
+  # Apply this function to for all variables at the site level
+    
+  Sites <- levels(fYssSite) # Remember that ctsVars is a list of all variables
   
-  PropData <- SchProp_bySite
-  ByLvls <- levels(fShortSite)
   PeerAvgs_bySite <- t(mapply(PeerAvg_forSV,
-                                         rep(ByLvls,  length(ctsVars)),
-                                         rep(ctsVars, each=length(ByLvls))
+                                         rep(Sites,  times=length(ctsVars)),
+                                         rep(ctsVars, each=length(Sites))
                                         ) )
   rownames(PeerAvgs_bySite) <- NULL
   PeerAvgs_bySite <- data.frame(PeerAvgs_bySite)
-  PeerAvgs_bySite$X3 <- as.numeric(levels(PeerAvgs_bySite$X3)[PeerAvgs_bySite$X3])
-  ctsMean_bySiteSchPeer <- cast(PeerAvgs_bySite, X1 ~ X2, value = "X3")
-  colnames(ctsMean_bySiteSchPeer)[1] <- "Site"
-  ctsMean_bySiteSchPeer$Site <- ctsMean_bySiteSchPeer$Site %&% "\nSch-Based Peers"
-  ctsMean_bySiteSchPeer$Grade <- "All"
-    
-  ### Calculate Averages by Any Yss ###
+  colnames(PeerAvgs_bySite) <- c("Site", "ctsVar","Mean")
+  PeerAvgs_bySite$Mean <- as.numeric(levels(PeerAvgs_bySite$Mean)[PeerAvgs_bySite$Mean]) # Convert factor to numeric
+
+  # Transpose the resulting dataframe
   
-  PropData <- SchProp_byAny
-  ByLvls <- levels(fAnyYss)
+  ctsMean_bySiteSchPeer <- cast(PeerAvgs_bySite, Site ~ ctsVar, value = "Mean")
+  ctsMean_bySiteSchPeer$Site <- paste0(ctsMean_bySiteSchPeer$Site,"\nSch-Based Peers")
+  ctsMean_bySiteSchPeer$Grade <- "All"
+  
+  # Repeat calculations at treatment group level (create a set of peers for T that attend the same schools as T students)
+  
+  PropData <- SchProp_byAny # Change proportional dataset
+  Status <- levels(fAnyYss)
   PeerAvgs_byAny <- t(mapply(PeerAvg_forSV,
-                                         rep(ByLvls,  length(ctsVars)),
-                                         rep(ctsVars, each=length(ByLvls))
+                                         rep(Status,  length(ctsVars)),
+                                         rep(ctsVars, each=length(Status))
                                         ) )
   rownames(PeerAvgs_byAny) <- NULL
   PeerAvgs_byAny <- data.frame(PeerAvgs_byAny)
   PeerAvgs_byAny$X3 <- as.numeric(levels(PeerAvgs_byAny$X3)[PeerAvgs_byAny$X3])
   ctsMean_byAnySchPeer <- cast(PeerAvgs_byAny, X1 ~ X2, value = "X3")
   colnames(ctsMean_byAnySchPeer)[1] <- "Site"
-  ctsMean_byAnySchPeer$Site <- ctsMean_byAnySchPeer$Site %&% "\nSch-Based Peers"
+  ctsMean_byAnySchPeer$Site <- paste0(ctsMean_byAnySchPeer$Site,"\nSch-Based Peers")
   ctsMean_byAnySchPeer$Grade <- "All"
+  
+    # Combine peer calculations with existing ctsMeans table
+  
+  ctsMeans <- rbind(ctsMeans,ctsMean_bySiteSchPeer,ctsMean_byAnySchPeer)
   
   #---------------
   ### SAVE RESULTS
