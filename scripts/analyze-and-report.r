@@ -21,13 +21,8 @@
   runDescGraphs    <- 0
   runRegs          <- 1
 
-  library(plyr)
-  library(reshape)
   library(ggplot2)
-  library(car)
-  library(foreign)
   library(scales)
-  library(grid)
 
   myfill  <- c("#CC3300", "#660000") #orange/red and dark red
   myfill2 <- c("#CC6600", "#480000") #darker orange and maroon
@@ -68,44 +63,76 @@
 #---------------------------------------#
 #---------------------------------------#
   
-if (1==runDescGraphs) {
+#if (1==runDescGraphs) {
 
-### ERW: Experimenting with apply/looping to get rid of graphs.  This isn't working yet.
+# Define levels to iterate through - organization, site, and variable
   
   org <- "YMCA"
-  sites <- levels(fYssSite)
-  toGraph <- c("GradeLvl", "RaceEth", "Lunch")
+  sites <- c("All",levels(fYssSite))
+  toGraph <- c("GradeLvl", "RaceEth", "Lunch", "TestPlMath", "TestPlRead","MathME_by_Gr","ReadME_by_Gr")
 
-  RaceEth_Data <- as.data.frame(prop.table(table(fAnyYss,fRace),1))
-  GradeLvl_Data <- as.data.frame(prop.table(table(fAnyYss,fGradeLvl),1))
-  Lunch_Data <- ctsMeans[(ctsMeans$Grade=="All") & (is.element(ctsMeans$Site,c(org,paste0("Non-",org),paste0(org,"\nSch-Based Peers")))),]
-    
-
-  # List customizable parameters for each graph
-    # Parameter order: c(graphVal,
-                        # aesx, aesy, aesfill
-                        # plotTitle,xlabel,ylabel,
-                        # extra)
-  GradeLvl_params <- c("GradeLvl",
-                       "fGradeLvl", "Freq", "fAnyYss", 
-                        "Distribution of Grade Levels", "Grade", "% in Each Grade",
-                        "")
-  RaceEth_params <- c("RaceEth",
-                      "fRace", "Freq", "fAnyYss", 
-                      "Comparison of Race/Ethnicity", "", "% in Each Race/Eth Group",
-                      "theme(axis.title.x=element_blank(), axis.title.y=element_text(size = 8))")
-  Lunch_params <- c("Lunch",
-                    "Site", "bLunch_FR", "Site", 
-                    "% Free/Reduced Price Lunch", "", "Proportion on Free/Reduced Price Lunch",
-                    "geom_text(data=Lunch_Data, aes(x=Site, y=bLunch_FR, label = sprintf('%.1f%%', Lunch_Data$bLunch_FR*100), vjust = -1), size = 6)")
+# Write a function to define the dataset (since the data needed depends on the site and variable)
   
-  DemoPlots <- function(site,graphVal,aesx,aesy,aesfill,plotTitle,xlab,ylab,extra){
-    print(aesx)
+  getPlotData <- function(graphVal,site){
+      if (graphVal=="RaceEth") {PlotData = as.data.frame(prop.table(table(fAnyYss,fRace),1))}
+      if (graphVal=="GradeLvl") {PlotData = as.data.frame(prop.table(table(fAnyYss,fGradeLvl),1))}
+      if (graphVal=="Lunch") {PlotData = ctsMeans[(ctsMeans$Grade=="All") & (is.element(ctsMeans$Site,c(org,paste0("Non-",org),paste0(org,"\nSch-Based Peers")))),]}
+      if (graphVal=="TestPlMath") {PlotData = as.data.frame(prop.table(table(fAnyYss,mathpl),1))}
+      if (graphVal=="TestPlRead") {PlotData = as.data.frame(prop.table(table(fAnyYss,readpl),1))}
+      if (graphVal %in% c("MathME_by_Gr", "ReadME_by_Gr")) {PlotData = ctsMeans[(ctsMeans$Grade %in% 3:8) & (is.element(ctsMeans$Site,c(org,paste0("Non-",org),paste0(org,"\nSch-Based Peers")))),]}
+      if (site=="All") {
+        return(PlotData)
+        } else {
+          propTableFun <- function(PlotData,varName,site){
+            df <- data.frame(cbind(site, data.frame(prop.table(table(varName[fYssSite==site])))))
+            colnames(df) <- colnames(PlotData)
+            PlotData <- rbind(PlotData, df)
+            return(PlotData)}
+          if (graphVal=="RaceEth") {PlotData <- propTableFun(PlotData,fRace,site)}
+          if (graphVal=="GradeLvl") {PlotData <- propTableFun(PlotData,fGradeLvl,site)}
+          if (graphVal=="TestPlMath") {PlotData <- propTableFun(PlotData,mathpl,site)}
+          if (graphVal=="TestPlRead") {PlotData <- propTableFun(PlotData,readpl,site)}
+          if (graphVal=="Lunch") {PlotData = ctsMeans[(ctsMeans$Grade=="All") & (is.element(ctsMeans$Site,c(org,paste0("Non-",org),paste0(site,"\nSch-Based Peers"),site))),]}
+          if (graphVal %in% c("MathME_by_Gr", "ReadME_by_Gr")) {PlotData = ctsMeans[(ctsMeans$Grade %in% 3:8) & (is.element(ctsMeans$Site,c(org,paste0("Non-",org),paste0(site,"\nSch-Based Peers"),site))),]}
+          return(PlotData)
+        }  
+      }
+    
+  
+
+# Define the customizable parameters for each variable
+# Parameter order:  c(aesx, aesy, aesfill           # AESTHETICS
+                    #  plotTitle,xlabel,ylabel,      # TITLES  
+                    #  extra)                        # OTHER PARAMETERS
+  GradeLvl_params <-      c("fGradeLvl", "Freq", "fAnyYss", 
+                            "Distribution of Grade Levels", "Grade", "% in Each Grade",
+                            "")
+  RaceEth_params <-       c("fRace", "Freq", "fAnyYss", 
+                            "Comparison of Race/Ethnicity", "", "% in Each Race/Eth Group",
+                            "theme(axis.title.x=element_blank(), axis.title.y=element_text(size = 8))")
+  Lunch_params <-         c("Site", "bLunch_FR", "Site", 
+                            "% Free/Reduced Price Lunch", "", "Proportion on Free/Reduced Price Lunch",
+                            "geom_text(data=data, aes(x=Site, y=bLunch_FR, label = sprintf('%.1f%%', data$bLunch_FR*100), vjust = -1), size = 6)")
+  TestPlMath_params <-    c("mathpl","Freq","fAnyYss",
+                            "Tested Proficiency\nLevels - Math","","% in Performance Category",
+                            "theme(axis.title.x=element_blank(), axis.title.y=element_text(size=7))") #+ geom_text(data=data, aes(x=mathpl, y=Freq, label=sprintf('%.1f%%', data$Freq*100), vjust=-1), position = position_dodge(width=0.7), size = 6) + #vjust=-1, hjust=HAdj, size=7))
+  TestPlRead_params <-    c("readpl","Freq","fAnyYss",
+                            "Tested Proficiency\nLevels - Reading","","% in Performance Category",
+                            "theme(axis.title.x=element_blank(), axis.title.y=element_text(size=7))") #+ geom_text(data=data, aes(x=readpl, y=Freq, label=sprintf('%.1f%%', data$Freq*100), vjust=-1), position = position_dodge(width=0.7), size = 6) + #vjust=-1, hjust=HAdj, size=7))
+  MathME_by_Gr_params <-  c("Grade","mathpl_ME","Site",
+                            "% Meets/Exceeds Standard\nfor Math Proficiency","Grade","% Meets/Exceeds",
+                            "theme(axis.text=element_text(size=7))") #+ geom_text(data=data, aes(x=Grade, y=mathpl_ME, label=sprintf('%.1f%%', data$mathpl_ME*100), vjust=-1), position = position_dodge(width=0.7))
+  ReadME_by_Gr_params <-  c("Grade","readpl_ME","Site",
+                            "% Meets/Exceeds Standard\nfor Reading Proficiency","Grade","% Meets/Exceeds",
+                            "theme(axis.text=element_text(size=7))") #+ geom_text(data=data, aes(x=Grade, y=mathpl_ME, label=sprintf('%.1f%%', data$readpl_ME*100), vjust=-1), position = position_dodge(width=0.7))
+  
+  
+  DemoPlots <- function(site,graphVal,data,aesx,aesy,aesfill,plotTitle,xlab,ylab,extra){
     useFillCat <- c(myfill5, "#885533")
     useFill <- c(myfill5, "#885533", "BB2800")
-    myGraphOut <- paste0(myOutDir,site,"/")
-    plotData <- eval(parse(text = paste0(graphVal,"_Data")))
-    Plot <- ggplot(data=plotData, aes_string(x=aesx, y=aesy, fill=aesfill)) +
+#    myGraphOut <- paste0(myOutDir,site,"/")
+    myGraphOut <- paste0("g:/YSS_Graph_Testing",site,"/")
+      Plot <- ggplot(data=data, aes_string(x=aesx, y=aesy, fill=aesfill)) +
       geom_bar(stat="identity", position="dodge",width=0.7) +
       ggtitle(plotTitle) + xlab(xlab) + ylab(ylab) +
       scale_y_continuous(labels = percent) +
@@ -119,143 +146,32 @@ if (1==runDescGraphs) {
   
   BySite <- function(site,graphVal){
     print(paste("Running graphs for",site))
-    dir.create(file.path(myOutDir,site,fsep=""),showWarnings = F)
+#    dir.create(file.path(myOutDir,site,fsep=""),showWarnings = F) don't want to overwrite good graphs while testing
+    dir.create(file.path("g:/YSS_Graph_Testing",site,fsep=""),showWarnings = F)
     params <- eval(parse(text = paste0(graphVal,"_params")))
-    DemoPlots(site,params[1],params[2],params[3],params[4],params[5],params[6],params[7],eval(parse(text = params[8])))
+    PlotData <- getPlotData(graphVal,site)
+    DemoPlots(site,graphVal,PlotData,params[1],params[2],params[3],params[4],params[5],params[6],eval(parse(text = params[7])))
   }
   
   
-  BySite("South Side YMCA","GradeLvl")
-  BySite("South Side YMCA","RaceEth")  
-  BySite("South Side YMCA","Lunch")
+  # Test each graph as added
   
+#  BySite("South Side YMCA","GradeLvl")
+#  BySite("South Side YMCA","RaceEth")  
+#  BySite("South Side YMCA","Lunch")
+#  BySite("South Side YMCA","TestPlMath")
+#  BySite("South Side YMCA","TestPlRead")
   
+  # Ultimately, loop through varlist and site list like so:
   
-  
-  
-  
-  
-  
-  
-  
-
-  
-#  graphVal <- c("GradeLvl", "RaceEth", "Lunch" )
-#  aes <- c("x=demographic, y=Freq, fill=fAnyYss","x=demographic, y=Freq, fill=fAnyYss","x=Site, y=bLunch_FR")
-#  gtitles <- c("Distribution of Grade Levels", "Comparison of Race/Ethnicity", "% Free/Reduced Price Lunch")
-#  xlabs <- c("Grade","", "")
-#  ylabs <- c("% in Each Grade", "% in Each Race/Eth Group", "Proportion on Free/Reduced Price Lunch")
-#  extras <- c("","theme(axis.title.x=element_blank(), axis.title.y=element_text(size = 8))")
-#  param_df <- data.frame(demographic_key, dg_file_names, demotitles, xlabs, ylabs, extras, stringsAsFactors = FALSE)
-
-#  GetParams <- function(df,stringDem){
-#    search <- stringDem
-#    fn <- df$dg_file_name[df$demographic_key==search]
-#    t <- df$demotitles[df$demographic_key==search]
-#   xl <- df$xlabs[df$demographic_key==search]
-#    yl <- df$ylabs[df$demographic_key==search]
-#    xt <- df$extras[df$demographic_key==search]
- #   params <- c(fn,t,xl,yl,xt)
- #   return(params)
-#  }
+  mapply(BySite, rep(sites,  each=length(toGraph)), rep(toGraph, times=length(sites)))
   
 
   
   
-  
-  
-  for (s in c("All", levels(fYssSite))) {
-    print(paste("Running graphs for",s))
+######## ERW: Below is code (whether tables or exceptions) that has not yet been incorporated into the above iterative graphing model  
     
-    dir.create(file.path(myGraphOut, s, fsep=""), showWarnings = F)
-    
-    ctsPlotDataGr <- ctsMean_byAnyGr
-    ctsPlotData <- rbind(ctsMean_byAny, ctsMean_byAnySchPeer[ctsMean_byAnySchPeer$Site == "Org Alpha\nSch-Based Peers",])
-    ctsPlotData$Site <- factor(ctsPlotData$Site, levels= c("Non-Org Alpha", "Org Alpha\nSch-Based Peers", "Org Alpha")) 
-    
-    if (s == "All"){
-      useFillCat <- c(myfill5)
-      useFill <- c(myfill5, "#885533")
-      myGraphOut <- myOutDir
-    } else {
-      useFillCat <- c(myfill5, "#885533")
-      useFill <- c(myfill5, "#885533", "#BB2800")
-      #useFill <- c()
-      myGraphOut <- paste0(myOutDir,s,"/")
-      ctsPlotDataGr <- rbind(ctsPlotDataGr, ctsMean_bySiteGr[ctsMean_bySiteGr$Site==s,])
-      
-      ctsPlotData   <- rbind(ctsMean_byAny,
-                             ctsMean_bySiteSchPeer[ctsMean_bySiteSchPeer$Site==paste0(s,"\nSch-Based Peers")],
-                             ctsMean_bySite[ctsMean_bySite$Site==s, ])
-      ctsPlotData$Site <- factor(ctsPlotData$Site, levels= c("Non-Org Alpha", "Org Alpha", paste0(s,"\nSch-Based Peers"), s)) 
-    }
-    
-    # Grade distribution
-    
-    GrDist <- table(fAnyYss, fGradeLvl)
-    GrDistProp <- prop.table(GrDist, 1)  
-    GrDistPropL <- as.data.frame(GrDistProp)  
-    if (s != "All") {
-      p <- prop.table(table(fGradeLvl[fYssSite==s]))
-      df <- data.frame(cbind(s, data.frame(p)))
-      colnames(df) <- colnames(GrDistPropL)
-      GrDistPropL <- rbind(GrDistPropL, df)
-    }
-    
-    png(file = paste0(myGraphOut,"CpsVsOrg_GradeLvl_AnyYss.png"), res = myRes, width = myWidth, height = myHeight)
-      Plot_GradeHist <- ggplot(data=GrDistPropL, aes(x=fGradeLvl, y=Freq, fill=fAnyYss)) + 
-        geom_bar(stat="identity", position="dodge", width=0.7) + 
-        ggtitle("Distribution of Grade Levels") + 
-        xlab("Grade") + ylab("% in Each Grade") + 
-        theme(axis.title=element_text(size = 8)) +
-        scale_y_continuous(labels = percent) +
-        theme(legend.position="bottom") + 
-        scale_fill_manual(values=useFillCat) +  
-        guides(fill=guide_legend(title=NULL))
-      print(Plot_GradeHist)
-    dev.off()
-    
-    #Demographics - % free lunch
-    
-    Lunch_Data$mLabel <- sprintf("%.1f%%", Lunch_Data$bLunch_FR*100)
-    png(file=paste0(myGraphOut,"CpsVsOrg_Lunch_AnyYss.png"), res = myRes, width = myWidth, height = myHeight)
-      Plot_Frl <- ggplot(data=ctsPlotData, aes(x=Site, y=bLunch_FR)) +
-        geom_bar(stat="identity", position="dodge", aes(fill=Site), width=0.7) +
-        geom_text(data=ctsPlotData, aes(x=Site, y=bLunch_FR, label=mLabel, vjust=-1), size = 6) +
-        ggtitle("% Free/Reduced Price Lunch") +
-        ylab("Proportion on Free/Reduced Price Lunch") +
-        scale_y_continuous(labels = percent, breaks=seq(0.75, 1.0, 0.05), limits=c(0.75, 1.0), oob = squish) +
-        theme(axis.title.x=element_blank(), axis.title.y=element_text(size = 8)) +
-        theme(legend.position="none") +
-        scale_fill_manual(values=useFill) +
-        guides(fill=guide_legend(title=NULL))
-      print(Plot_Frl)
-    dev.off()
-    
-    
-    # Demographics - % race
-    
-    DemRc <- table(fAnyYss, fRace)
-    DemRcProp <- prop.table(DemRc, 1)
-    DemRcPropL <- as.data.frame(DemRcProp)
-    if (s != "All") {
-      p <- prop.table(table(fRace[fYssSite==s]))
-      df <- data.frame(cbind(s, data.frame(p)))
-      colnames(df) <- colnames(DemRcPropL)
-      DemRcPropL <- rbind(DemRcPropL, df)
-    }
-    
-    png(file=paste0(myGraphOut,"CpsVsOrg_RaceEth_AnyYss.png"), res = myRes, width = myWidth, height = myHeight)
-      Plot_RaceEth <- ggplot(data=DemRcPropL, aes(x=fRace, y=Freq, fill=fAnyYss)) +
-        geom_bar(stat="identity", position="dodge", width=0.7) +
-        ggtitle("Comparison of Race/Ethnicity") +
-        ylab("% in Each Race/Eth Group") +
-        scale_y_continuous(labels = percent) +
-        theme(axis.title.x=element_blank(), axis.title.y=element_text(size = 8))
-      print(Plot_RaceEth)
-    dev.off()
-    
-    
+
     
     # Neighborhood characteristics
       DemNbr <- melt(ctsPlotData[, c("Site", "Tract_Pct_LtHsEd", "Tract_Pct_VacantUnits", "Tract_ViolentCrimes_PerHundr", "Tract_Pct_IncRatKidsLt6_Lt100", "Tract_Pct_NonEnglLangSpokenAtHome")], id=("Site"))
@@ -297,91 +213,8 @@ if (1==runDescGraphs) {
         print(Plot_Crime)
       dev.off()
     
-   # Histogram of warning/below/meets/exceeds for Math
-      HistProfMth <- table(fAnyYss, mathpl)
-      HistProfMthProp <- prop.table(HistProfMth, 1)
-      HistProfMthPropL <- as.data.frame(HistProfMthProp)
-      if (s != "All") {
-        pl <- prop.table(table(mathpl[fShortSite==s]))
-        df <- data.frame(cbind(s, data.frame(pl)))
-        colnames(df) <- colnames(HistProfMthPropL)
-        HistProfMthPropL <- rbind(HistProfMthPropL, df)
-      }
       
-      HistProfMthPropL$mLabel <- sprintf("%.1f%%", HistProfMthPropL$Freq*100)
       
-      png(file = myGraphOut %&% "CpsVsOrg_TestPlMath_AnyYss.png", res = myRes, width = myWidth, height = myHeight)
-        Plot_TestPlMath <- ggplot(data=HistProfMthPropL, aes(x=mathpl, y=Freq, fill=fAnyYss)) + 
-          geom_bar(stat="identity", position="dodge", width=0.7) + 
-          #geom_text(data=HistProfMthPropL, aes(x=mathpl, y=Freq, label=mLabel, vjust=-1), position = position_dodge(width=0.7), size = 6) + #vjust=-1, hjust=HAdj, size=7)) +
-          ggtitle("Tested Proficiency\nLevels - Math") + 
-          ylab("% in Performance Category") + 
-          scale_y_continuous(labels = percent) +
-          theme(axis.title.x=element_blank(), axis.title.y=element_text(size = 7), legend.position="bottom") +
-          scale_fill_manual(values=useFillCat) +  
-          guides(fill=guide_legend(title=NULL))
-        print(Plot_TestPlMath)
-      dev.off()
-    
-    # Histogram of warning/below/meets/exceeds for Reading
-    
-      HistProfRd <- table(fAnyYss, readpl)
-      HistProfRdProp <- prop.table(HistProfRd, 1)
-      HistProfRdPropL <- as.data.frame(HistProfRdProp)
-      if (s != "All") {
-        pl <- prop.table(table(readpl[fShortSite==s]))
-        df <- data.frame(cbind(s, data.frame(pl)))
-        colnames(df) <- colnames(HistProfRdPropL)
-        HistProfRdPropL <- rbind(HistProfRdPropL, df)
-      }
-    
-      HistProfRdPropL$mLabel <- sprintf("%.1f%%", HistProfRdPropL$Freq*100)
-      
-      png(file = myGraphOut %&% "CpsVsOrg_TestPlRead_AnyYss.png", res = myRes, width = myWidth, height = myHeight)
-        Plot_TestPlRead <- ggplot(data=HistProfRdPropL, aes(x=readpl, y=Freq, fill=fAnyYss)) + 
-          geom_bar(stat="identity", position="dodge", width=0.7) + 
-          #geom_text(data=HistProfRdPropL, aes(x=readpl, y=Freq, label=mLabel, vjust=-1), position = position_dodge(width=0.7)) +
-          ggtitle("Tested Proficiency\nLevels - Reading") + 
-          ylab("% in Performance Category") +
-          scale_y_continuous(labels = percent) +
-          theme(axis.title.x=element_blank(), axis.title.y=element_text(size = 7), legend.position="bottom") +
-          scale_fill_manual(values=useFillCat) +	
-          guides(fill=guide_legend(title=NULL))
-        print(Plot_TestPlRead)
-      dev.off()
-      
-    # Average Meets/Exceeds Calculations by Grade
-    
-      MEbyGr_non0 <- ctsPlotDataGr[ctsPlotDataGr$Grade %in% 3:8, ]
-      MEbyGr_non0$Site <- factor(MEbyGr_non0$Site, levels=c("Non-YMCA", "YMCA", s))
-      MEbyGr_non0$mLabel <- sprintf("%.1f%%", MEbyGr_non0$mathpl_ME*100)
-    
-      png(file = myGraphOut %&% "CpsVsOrg_MathME_by_Gr_AnyYss.png", res = myRes, width = myWidth, height = myHeight)
-        MEByGr_math <- ggplot(data=MEbyGr_non0, aes(x=Grade, y=mathpl_ME, fill=Site)) + 
-          geom_bar(stat="identity", position="dodge", width=0.7) + 
-          #geom_text(data=MEbyGr_non0, aes(x=Grade, y=mathpl_ME, label=mLabel, vjust=-1), position = position_dodge(width=0.7)) +
-          ggtitle("% Meets/Exceeds Standard\nfor Math Proficiency") + 
-          xlab("Grade") + ylab("% Meets/Exceeds") +
-          scale_y_continuous(labels = percent) + 
-          scale_fill_manual(values=useFill) +  
-          guides(fill=guide_legend(title=NULL)) +
-          theme(legend.position="bottom", axis.text=element_text(size = 7))
-        print(MEByGr_math)
-      dev.off()
-    
-      png(file = myGraphOut %&% "CpsVsOrg_ReadME_by_Gr_AnyYss.png", res = myRes, width = myWidth, height = myHeight)
-        MEByGr_read <- ggplot(data=MEbyGr_non0, aes(x=Grade, y=readpl_ME, fill=Site)) + 
-          geom_bar(stat="identity", position="dodge", width=0.7) + 
-          #geom_text(data=MEbyGr_non0, aes(x=Grade, y=readpl_ME, label=mLabel, vjust=-1), position = position_dodge(width=0.7)) +
-          ggtitle("% Meets/Exceeds Standard\nfor Reading Proficiency") + 
-          xlab("Grade") + ylab("% Meets/Exceeds") +
-          scale_y_continuous(labels = percent) +
-          scale_fill_manual(values=useFill) +  
-          guides(fill=guide_legend(title=NULL)) +
-          theme(legend.position="bottom", axis.text=element_text(size = 7))
-        print(MEByGr_read)
-      dev.off()
-    
     # Average Test Scores by Grade
     
       TestByGr <- melt(ctsPlotDataGr[, c("Site", "Grade", "mathss", "readss")], id=c("Site", "Grade"))
@@ -487,8 +320,6 @@ if (1==runDescGraphs) {
       dev.off() 
   
     
-  } # End of loop across sites
-  
   
 #-------------------------------------------#
 #-------------------------------------------#
