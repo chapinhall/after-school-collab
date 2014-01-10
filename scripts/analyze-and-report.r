@@ -22,14 +22,6 @@
   runRegs          <- 1
 
 
-  library(plyr)
-  library(reshape)
-  library(ggplot2)
-  library(car)
-  library(foreign)
-  library(scales)
-  library(grid)
-  
   myfill  <- c("#CC3300", "#660000") #orange/red and dark red
   myfill2 <- c("#CC6600", "#480000") #darker orange and maroon
   myfill3 <- c("#FF6600", "#480000") #lighter orange and maroon
@@ -57,18 +49,11 @@
     scramInd <- ""
 }
 
+  try(detach(myData), silent=T)
   attach(myData)
 
-  load(paste0(dataPath,"ctsMean_byAny",scramInd,".Rda"))
-  load(paste0(dataPath,"ctsMean_byAnyGr",scramInd,".Rda"))
-  load(paste0(dataPath,"ctsMean_bySite",scramInd,".Rda"))
-  load(paste0(dataPath,"ctsMean_bySiteGr",scramInd,".Rda"))
-  load(paste0(dataPath,"ctsMean_bySch",scramInd,".Rda"))
-  load(paste0(dataPath,"ctsMean_bySchGr",scramInd,".Rda"))
-  load(paste0(dataPath,"ctsMean_byAnySchPeer",scramInd,".Rda"))
-  load(paste0(dataPath,"ctsMean_bySiteSchPeer",scramInd,".Rda"))
+  load(paste0(dataPath,"ctsMeans",scramInd,".Rda"))
 
-  
 
 #---------------------------------------#
 #---------------------------------------#
