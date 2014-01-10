@@ -81,16 +81,38 @@ if (1==runDescGraphs) {
 ### ERW: Experimenting with apply/looping to get rid of graphs.  This isn't working yet.
   
   sites <- levels(fYssSite)
-  demographics <- c(fGradeLvl, fRace)
+  graphVars <- c(fGradeLvl, fRace)
+
+  CreatePlotData <- function(graphVar){
+    ctsPlotDataGr <- ctsMean_byAnyGr
+    ctsPlotData <- rbind(ctsMean_byAny, ctsMean_byAnySchPeer[ctsMean_byAnySchPeer$Site == "Org Alpha\nSch-Based Peers",])
+    ctsPlotData$Site <- factor(ctsPlotData$Site, levels= c("Non-Org Alpha", "Org Alpha\nSch-Based Peers", "Org Alpha")) 
+    
+  }
+  
   demographic_key <- c("fGradeLvl", "fRace")
   dg_file_names <- c("GradeLvl","RaceEth")
   demotitles <- c("Distribution of Grade Levels", "Comparison of Race/Ethnicity")
   xlabs <- c("Grade","")
   ylabs <- c("% in Each Grade", "% in Each Race/Eth Group")
   extras <- c("","theme(axis.title.x=element_blank(), axis.title.y=element_text(size = 8))")
-  demo_df <- data.frame(demographic_key, dg_file_names, demotitles, xlabs, ylabs, extras)
+  param_df <- data.frame(demographic_key, dg_file_names, demotitles, xlabs, ylabs, extras, stringsAsFactors = FALSE)
+
+  GetParams <- function(df,stringDem){
+    search <- stringDem
+    fn <- df$dg_file_name[df$demographic_key==search]
+    t <- df$demotitles[df$demographic_key==search]
+    xl <- df$xlabs[df$demographic_key==search]
+    yl <- df$ylabs[df$demographic_key==search]
+    xt <- df$extras[df$demographic_key==search]
+    params <- c(fn,t,xl,yl,xt)
+    return(params)
+  }
   
   DemoPlots <- function(site,demographic,dg_file_name,plotTitle,xlab,ylab,extra){
+    useFillCat <- c(myfill5, "#885533")
+    useFill <- c(myfill5, "#885533", "BB2800")
+    myGraphOut <- paste0(myOutDir,site,"/")
     plotData <- as.data.frame(prop.table(table(fAnyYss,demographic),1))
       Plot <- ggplot(data=plotData, aes(x=demographic, y=Freq, fill=fAnyYss)) +
         geom_bar(stat="identity", position="dodge",width=0.7) +
@@ -98,30 +120,25 @@ if (1==runDescGraphs) {
         scale_y_continuous(labels = percent) +
         theme(legend.position = "bottom") +
         scale_fill_manual(values = useFillCat) +
-        guides(fill = guide_legend(title=NULL)) + extra)
+        guides(fill = guide_legend(title=NULL)) + extra
     print(Plot)
     ggsave(filename = paste0(myGraphOut,"CpsVsOrg_",dg_file_name,"_AnyYss.png"), dpi = myRes, width = myWidth, height = myHeight)
     return(Plot)
   }
-
-  BySite <- function(site){
+  
+  BySite <- function(site,demographic){
     print(paste("Running graphs for",site))
     dir.create(file.path(myOutDir,site,fsep=""),showWarnings = F)
-    useFillCat <- c(myfill5, "#885533")
-    useFill <- c(myfill5, "#885533", "BB2800")
-    myGraphOut <- paste0(myOutDir,site,"/")
-    for (d in c(fGradeLvl, fRace)) {
-      DemoPlots(site,as.name(d),demo_df$dg_file_names,demo_df$demotitles,demo_df$xlabs,demo_df$ylabs,demo_df$extras)
+    params <- GetParams(param_df,demographic)
+    demobj <- eval(parse(text = demographic))
+    DemoPlots(site,demobj,params[1],params[2],params[3],params[4],eval(parse(text = params[5])))
     }
   }
   
  
-  myGraphOut <- myOutDir
-  Plot_RaceEth <- DemoPlots("South Side YMCA",fRace,"RaceEth","Comparison of Race/Ethnicity","","% in Each Race/Eth Group", theme(axis.title.x=element_blank(), axis.title.y=element_text(size = 8)))
-  Plot_GradeHist <- DemoPlots("South Side YMCA",fGradeLvl,"GradeLvl","Distribution of Grade Levels","Grade","% in Each Grade","")
-  
- 
-  
+  BySite("South Side YMCA","fGradeLvl")
+  BySite("South Side YMCA","fRace")  
+
   
   
   
