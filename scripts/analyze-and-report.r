@@ -21,6 +21,13 @@
   runDescGraphs    <- 0
   runRegs          <- 1
 
+  library(plyr)
+  library(reshape)
+  library(ggplot2)
+  library(car)
+  library(foreign)
+  library(scales)
+  library(grid)
 
   myfill  <- c("#CC3300", "#660000") #orange/red and dark red
   myfill2 <- c("#CC6600", "#480000") #darker orange and maroon
@@ -65,64 +72,93 @@ if (1==runDescGraphs) {
 
 ### ERW: Experimenting with apply/looping to get rid of graphs.  This isn't working yet.
   
+  org <- "YMCA"
   sites <- levels(fYssSite)
-  graphVars <- c(fGradeLvl, fRace)
+  toGraph <- c("GradeLvl", "RaceEth", "Lunch")
 
-  CreatePlotData <- function(graphVar){
-    ctsPlotDataGr <- ctsMean_byAnyGr
-    ctsPlotData <- rbind(ctsMean_byAny, ctsMean_byAnySchPeer[ctsMean_byAnySchPeer$Site == "Org Alpha\nSch-Based Peers",])
-    ctsPlotData$Site <- factor(ctsPlotData$Site, levels= c("Non-Org Alpha", "Org Alpha\nSch-Based Peers", "Org Alpha")) 
+  RaceEth_Data <- as.data.frame(prop.table(table(fAnyYss,fRace),1))
+  GradeLvl_Data <- as.data.frame(prop.table(table(fAnyYss,fGradeLvl),1))
+  Lunch_Data <- ctsMeans[(ctsMeans$Grade=="All") & (is.element(ctsMeans$Site,c(org,paste0("Non-",org),paste0(org,"\nSch-Based Peers")))),]
     
-  }
-  
-  demographic_key <- c("fGradeLvl", "fRace")
-  dg_file_names <- c("GradeLvl","RaceEth")
-  demotitles <- c("Distribution of Grade Levels", "Comparison of Race/Ethnicity")
-  xlabs <- c("Grade","")
-  ylabs <- c("% in Each Grade", "% in Each Race/Eth Group")
-  extras <- c("","theme(axis.title.x=element_blank(), axis.title.y=element_text(size = 8))")
-  param_df <- data.frame(demographic_key, dg_file_names, demotitles, xlabs, ylabs, extras, stringsAsFactors = FALSE)
 
-  GetParams <- function(df,stringDem){
-    search <- stringDem
-    fn <- df$dg_file_name[df$demographic_key==search]
-    t <- df$demotitles[df$demographic_key==search]
-    xl <- df$xlabs[df$demographic_key==search]
-    yl <- df$ylabs[df$demographic_key==search]
-    xt <- df$extras[df$demographic_key==search]
-    params <- c(fn,t,xl,yl,xt)
-    return(params)
-  }
+  # List customizable parameters for each graph
+    # Parameter order: c(graphVal,
+                        # aesx, aesy, aesfill
+                        # plotTitle,xlabel,ylabel,
+                        # extra)
+  GradeLvl_params <- c("GradeLvl",
+                       "fGradeLvl", "Freq", "fAnyYss", 
+                        "Distribution of Grade Levels", "Grade", "% in Each Grade",
+                        "")
+  RaceEth_params <- c("RaceEth",
+                      "fRace", "Freq", "fAnyYss", 
+                      "Comparison of Race/Ethnicity", "", "% in Each Race/Eth Group",
+                      "theme(axis.title.x=element_blank(), axis.title.y=element_text(size = 8))")
+  Lunch_params <- c("Lunch",
+                    "Site", "bLunch_FR", "Site", 
+                    "% Free/Reduced Price Lunch", "", "Proportion on Free/Reduced Price Lunch",
+                    "geom_text(data=Lunch_Data, aes(x=Site, y=bLunch_FR, label = sprintf('%.1f%%', Lunch_Data$bLunch_FR*100), vjust = -1), size = 6)")
   
-  DemoPlots <- function(site,demographic,dg_file_name,plotTitle,xlab,ylab,extra){
+  DemoPlots <- function(site,graphVal,aesx,aesy,aesfill,plotTitle,xlab,ylab,extra){
+    print(aesx)
     useFillCat <- c(myfill5, "#885533")
     useFill <- c(myfill5, "#885533", "BB2800")
     myGraphOut <- paste0(myOutDir,site,"/")
-    plotData <- as.data.frame(prop.table(table(fAnyYss,demographic),1))
-      Plot <- ggplot(data=plotData, aes(x=demographic, y=Freq, fill=fAnyYss)) +
-        geom_bar(stat="identity", position="dodge",width=0.7) +
-        ggtitle(plotTitle) + xlab(xlab) + ylab(ylab) +
-        scale_y_continuous(labels = percent) +
-        theme(legend.position = "bottom") +
-        scale_fill_manual(values = useFillCat) +
-        guides(fill = guide_legend(title=NULL)) + extra
+    plotData <- eval(parse(text = paste0(graphVal,"_Data")))
+    Plot <- ggplot(data=plotData, aes_string(x=aesx, y=aesy, fill=aesfill)) +
+      geom_bar(stat="identity", position="dodge",width=0.7) +
+      ggtitle(plotTitle) + xlab(xlab) + ylab(ylab) +
+      scale_y_continuous(labels = percent) +
+      theme(legend.position = "bottom") +
+      scale_fill_manual(values = useFillCat) +
+      guides(fill = guide_legend(title=NULL)) + extra
     print(Plot)
-    ggsave(filename = paste0(myGraphOut,"CpsVsOrg_",dg_file_name,"_AnyYss.png"), dpi = myRes, width = myWidth, height = myHeight)
+    ggsave(filename = paste0(myGraphOut,"CpsVsOrg_",graphVal,"_AnyYss.png"), dpi = myRes, width = myWidth, height = myHeight)
     return(Plot)
   }
   
-  BySite <- function(site,demographic){
+  BySite <- function(site,graphVal){
     print(paste("Running graphs for",site))
     dir.create(file.path(myOutDir,site,fsep=""),showWarnings = F)
-    params <- GetParams(param_df,demographic)
-    demobj <- eval(parse(text = demographic))
-    DemoPlots(site,demobj,params[1],params[2],params[3],params[4],eval(parse(text = params[5])))
-    }
+    params <- eval(parse(text = paste0(graphVal,"_params")))
+    DemoPlots(site,params[1],params[2],params[3],params[4],params[5],params[6],params[7],eval(parse(text = params[8])))
   }
   
- 
-  BySite("South Side YMCA","fGradeLvl")
-  BySite("South Side YMCA","fRace")  
+  
+  BySite("South Side YMCA","GradeLvl")
+  BySite("South Side YMCA","RaceEth")  
+  BySite("South Side YMCA","Lunch")
+  
+  
+  
+  
+  
+  
+  
+  
+  
+  
+
+  
+#  graphVal <- c("GradeLvl", "RaceEth", "Lunch" )
+#  aes <- c("x=demographic, y=Freq, fill=fAnyYss","x=demographic, y=Freq, fill=fAnyYss","x=Site, y=bLunch_FR")
+#  gtitles <- c("Distribution of Grade Levels", "Comparison of Race/Ethnicity", "% Free/Reduced Price Lunch")
+#  xlabs <- c("Grade","", "")
+#  ylabs <- c("% in Each Grade", "% in Each Race/Eth Group", "Proportion on Free/Reduced Price Lunch")
+#  extras <- c("","theme(axis.title.x=element_blank(), axis.title.y=element_text(size = 8))")
+#  param_df <- data.frame(demographic_key, dg_file_names, demotitles, xlabs, ylabs, extras, stringsAsFactors = FALSE)
+
+#  GetParams <- function(df,stringDem){
+#    search <- stringDem
+#    fn <- df$dg_file_name[df$demographic_key==search]
+#    t <- df$demotitles[df$demographic_key==search]
+#   xl <- df$xlabs[df$demographic_key==search]
+#    yl <- df$ylabs[df$demographic_key==search]
+#    xt <- df$extras[df$demographic_key==search]
+ #   params <- c(fn,t,xl,yl,xt)
+ #   return(params)
+#  }
+  
 
   
   
@@ -181,7 +217,7 @@ if (1==runDescGraphs) {
     
     #Demographics - % free lunch
     
-    ctsPlotData$mLabel <- sprintf("%.1f%%", ctsPlotData$bLunch_FR*100)
+    Lunch_Data$mLabel <- sprintf("%.1f%%", Lunch_Data$bLunch_FR*100)
     png(file=paste0(myGraphOut,"CpsVsOrg_Lunch_AnyYss.png"), res = myRes, width = myWidth, height = myHeight)
       Plot_Frl <- ggplot(data=ctsPlotData, aes(x=Site, y=bLunch_FR)) +
         geom_bar(stat="identity", position="dodge", aes(fill=Site), width=0.7) +
