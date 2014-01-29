@@ -80,6 +80,7 @@
       if (graphVal=="TestPlMath") {PlotData = as.data.frame(prop.table(table(fAnyYss,mathpl),1))}
       if (graphVal=="TestPlRead") {PlotData = as.data.frame(prop.table(table(fAnyYss,readpl),1))}
       if (graphVal %in% c("MathME_by_Gr", "ReadME_by_Gr")) {PlotData = ctsMeans[(ctsMeans$Grade %in% 3:8) & (is.element(ctsMeans$Site,c(org,paste0("Non-",org),paste0(org,"\nSch-Based Peers")))),]}
+      if (graphVal %in% c("MathByGr","ReadByGr")) {PlotData = ctsMeans[(ctsMeans$Grade %in% 3:8)]}  #### NEED TO CONFIRM CORRECT DATA FOR THESE CHARTS AND ADD SITE LEVEL BELOW
       if (site=="All") {
         return(PlotData)
         } else {
@@ -98,7 +99,6 @@
         }  
       }
     
-  
 
 # Define the customizable parameters for each variable
 # Parameter order:  c(aesx, aesy, aesfill           # AESTHETICS
@@ -112,7 +112,7 @@
                             "theme(axis.title.x=element_blank(), axis.title.y=element_text(size = 8))")
   Lunch_params <-         c("Site", "bLunch_FR", "Site", 
                             "% Free/Reduced Price Lunch", "", "Proportion on Free/Reduced Price Lunch",
-                            "geom_text(data=data, aes(x=Site, y=bLunch_FR, label = sprintf('%.1f%%', data$bLunch_FR*100), vjust = -1), size = 6)")
+                            "") #"geom_text(data=data, aes(x=Site, y=bLunch_FR, label = sprintf('%.1f%%', data$bLunch_FR*100), vjust = -1), size = 6)")
   TestPlMath_params <-    c("mathpl","Freq","fAnyYss",
                             "Tested Proficiency\nLevels - Math","","% in Performance Category",
                             "theme(axis.title.x=element_blank(), axis.title.y=element_text(size=7))") #+ geom_text(data=data, aes(x=mathpl, y=Freq, label=sprintf('%.1f%%', data$Freq*100), vjust=-1), position = position_dodge(width=0.7), size = 6) + #vjust=-1, hjust=HAdj, size=7))
@@ -125,11 +125,49 @@
   ReadME_by_Gr_params <-  c("Grade","readpl_ME","Site",
                             "% Meets/Exceeds Standard\nfor Reading Proficiency","Grade","% Meets/Exceeds",
                             "theme(axis.text=element_text(size=7))") #+ geom_text(data=data, aes(x=Grade, y=mathpl_ME, label=sprintf('%.1f%%', data$readpl_ME*100), vjust=-1), position = position_dodge(width=0.7))
+  MathTestSs_by_Gr_params <- c("Grade","mathss","Site",
+                               "Math Scores by Grade","Grade","Average Test Scale Score",
+                               "theme(legend.position='bottom', axis.title=element_text(size=7))")
+  ReadTestSs_by_Gr_params <- c("Grade","readss","Site",
+                               "Reading Scores by Grade","Grade","Average Test Scale Score",
+                               "theme(legend.position='bottom', axis.title=element_text(size=7))")
+  
+  
+  # Average Test Scores by Grade
+  
+
+  
+  TestByGr$mLabel <- sprintf("%.1f", TestByGr$mathss)
+  TestByGr$rLabel <- sprintf("%.1f", TestByGr$readss)
+  
+  png(file = myGraphOut %&% "CpsVsOrg_MathTestSs_by_Gr_AnyYss.png", res = myRes, width = myWidth, height = myHeight)
+  Plot_MathByGr <- ggplot(data=TestByGr[TestByGr$Grade %in% 3:8,], aes(x=Grade, y=mathss, fill=Site)) + 
+    geom_bar(stat="identity", position="dodge", width=0.7) + 
+    #geom_text(data=TestByGr, aes(x=Grade, y=mathss, label=mLabel, vjust=-1), position = position_dodge(width=0.7)) +
+    ggtitle("Math Scores by Grade") + 
+    scale_fill_manual(values=useFill) +  
+    xlab("Grade") + ylab("Average Test Scale Score") +
+    guides(fill=guide_legend(title=NULL)) +
+    theme(legend.position="bottom", axis.title = element_text(size=7))
+  print(Plot_MathByGr)
+  dev.off()
+  
+  png(file = myGraphOut %&% "CpsVsOrg_ReadTestSs_by_Gr_AnyYss.png", res = myRes, width = myWidth, height = myHeight)
+  Plot_ReadByGr <- ggplot(data=TestByGr[TestByGr$Grade %in% 3:8,], aes(x=Grade, y=readss, fill=Site)) + 
+    geom_bar(stat="identity", position="dodge", width=0.7) + 
+    #geom_text(data=TestByGr, aes(x=Grade, y=readss, label=rLabel, vjust=-1, size=7), position = position_dodge(width=0.7)) +
+    ggtitle("Reading Scores by Grade") + 
+    scale_fill_manual(values=useFill) +  
+    xlab("Grade") + ylab("Average Test Scale Score") +
+    guides(fill=guide_legend(title=NULL)) +
+    theme(legend.position="bottom", axis.title = element_text(size=7))
+  print(Plot_ReadByGr)
+  dev.off()
   
   
   DemoPlots <- function(site,graphVal,data,aesx,aesy,aesfill,plotTitle,xlab,ylab,extra){
     useFillCat <- c(myfill5, "#885533")
-    useFill <- c(myfill5, "#885533", "BB2800")
+    useFill <- c(myfill5, "#885533", "#BB2800")
 #    myGraphOut <- paste0(myOutDir,site,"/")
     myGraphOut <- paste0("g:/YSS_Graph_Testing",site,"/")
       Plot <- ggplot(data=data, aes_string(x=aesx, y=aesy, fill=aesfill)) +
@@ -137,7 +175,7 @@
       ggtitle(plotTitle) + xlab(xlab) + ylab(ylab) +
       scale_y_continuous(labels = percent) +
       theme(legend.position = "bottom") +
-      scale_fill_manual(values = useFillCat) +
+      scale_fill_manual(values = useFill) +
       guides(fill = guide_legend(title=NULL)) + extra
     print(Plot)
     ggsave(filename = paste0(myGraphOut,"CpsVsOrg_",graphVal,"_AnyYss.png"), dpi = myRes, width = myWidth, height = myHeight)
@@ -215,38 +253,7 @@
     
       
       
-    # Average Test Scores by Grade
-    
-      TestByGr <- melt(ctsPlotDataGr[, c("Site", "Grade", "mathss", "readss")], id=c("Site", "Grade"))
-      TestByGr <- ctsPlotDataGr[, c("Site", "Grade", "mathss", "readss")]
-      TestByGr <- TestByGr[TestByGr$Grade %in% 3:8,]
-      
-      TestByGr$mLabel <- sprintf("%.1f", TestByGr$mathss)
-      TestByGr$rLabel <- sprintf("%.1f", TestByGr$readss)
-    
-      png(file = myGraphOut %&% "CpsVsOrg_MathTestSs_by_Gr_AnyYss.png", res = myRes, width = myWidth, height = myHeight)
-        Plot_MathByGr <- ggplot(data=TestByGr[TestByGr$Grade %in% 3:8,], aes(x=Grade, y=mathss, fill=Site)) + 
-          geom_bar(stat="identity", position="dodge", width=0.7) + 
-          #geom_text(data=TestByGr, aes(x=Grade, y=mathss, label=mLabel, vjust=-1), position = position_dodge(width=0.7)) +
-          ggtitle("Math Scores by Grade") + 
-          scale_fill_manual(values=useFill) +  
-          xlab("Grade") + ylab("Average Test Scale Score") +
-          guides(fill=guide_legend(title=NULL)) +
-          theme(legend.position="bottom", axis.title = element_text(size=7))
-        print(Plot_MathByGr)
-      dev.off()
-    
-      png(file = myGraphOut %&% "CpsVsOrg_ReadTestSs_by_Gr_AnyYss.png", res = myRes, width = myWidth, height = myHeight)
-        Plot_ReadByGr <- ggplot(data=TestByGr[TestByGr$Grade %in% 3:8,], aes(x=Grade, y=readss, fill=Site)) + 
-          geom_bar(stat="identity", position="dodge", width=0.7) + 
-          #geom_text(data=TestByGr, aes(x=Grade, y=readss, label=rLabel, vjust=-1, size=7), position = position_dodge(width=0.7)) +
-          ggtitle("Reading Scores by Grade") + 
-          scale_fill_manual(values=useFill) +  
-          xlab("Grade") + ylab("Average Test Scale Score") +
-          guides(fill=guide_legend(title=NULL)) +
-          theme(legend.position="bottom", axis.title = element_text(size=7))
-        print(Plot_ReadByGr)
-      dev.off()
+
     
     
     # Average test gains
