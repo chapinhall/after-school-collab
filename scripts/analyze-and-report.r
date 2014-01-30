@@ -4,7 +4,7 @@
 # Preliminary Analysis with ggplot2           #
 #                                             #
 # Authors: Nick Mader, Ian Matthew Morey,	    #
-#			and Emily Wiegand		    #  
+#			and Emily Wiegand		                    #  
 #---------------------------------------------#
 #---------------------------------------------#
 
@@ -73,27 +73,28 @@
 
 # Write a function to define the dataset (since the data needed depends on the site and variable)
   
-  getPlotData <- function(graphVal,site){
-      if (graphVal=="RaceEth") {PlotData = as.data.frame(prop.table(table(fAnyYss,fRace),1))}
-      if (graphVal=="GradeLvl") {PlotData = as.data.frame(prop.table(table(fAnyYss,fGradeLvl),1))}
-      if (graphVal=="Lunch") {PlotData = ctsMeans[(ctsMeans$Grade=="All") & (is.element(ctsMeans$Site,c(org,paste0("Non-",org),paste0(org,"\nSch-Based Peers")))),]}
-      if (graphVal=="TestPlMath") {PlotData = as.data.frame(prop.table(table(fAnyYss,mathpl),1))}
-      if (graphVal=="TestPlRead") {PlotData = as.data.frame(prop.table(table(fAnyYss,readpl),1))}
-      if (graphVal %in% c("MathME_by_Gr", "ReadME_by_Gr","MathTestSs_by_Gr","ReadTestSs_by_Gr")) {PlotData = ctsMeans[(ctsMeans$Grade %in% 3:8) & (is.element(ctsMeans$Site,c(org,paste0("Non-",org),paste0(org,"\nSch-Based Peers")))),]}
+  getPlotData <- function(graphVal, site){
+      if (graphVal=="RaceEth")    {PlotData <- as.data.frame(prop.table(table(fAnyYss, fRace),1))}
+      if (graphVal=="GradeLvl")   {PlotData <- as.data.frame(prop.table(table(fAnyYss, fGradeLvl),1))}
+      if (graphVal=="Lunch")      {PlotData <- ctsMeans[(ctsMeans$Grade=="All") & (is.element(ctsMeans$Site,c(org, paste0("Non-", org),paste0(org,"\nSch-Based Peers")))), ]}
+      if (graphVal=="TestPlMath") {PlotData <- as.data.frame(prop.table(table(fAnyYss,mathpl),1))}
+      if (graphVal=="TestPlRead") {PlotData <- as.data.frame(prop.table(table(fAnyYss,readpl),1))}
+      if (graphVal %in% c("MathME_by_Gr", "ReadME_by_Gr","MathTestSs_by_Gr","ReadTestSs_by_Gr")) {PlotData <- ctsMeans[(ctsMeans$Grade %in% 3:8) & (is.element(ctsMeans$Site,c(org,paste0("Non-", org),paste0(org, "\nSch-Based Peers")))),]}
       if (site=="All") {
         return(PlotData)
         } else {
-          propTableFun <- function(PlotData,varName,site){
+          propTableFun <- function(PlotData,varName,site){ # NSM: Why is this function defined within the other function?
             df <- data.frame(cbind(site, data.frame(prop.table(table(varName[fYssSite==site])))))
             colnames(df) <- colnames(PlotData)
             PlotData <- rbind(PlotData, df)
-            return(PlotData)}
-          if (graphVal=="RaceEth") {PlotData <- propTableFun(PlotData,fRace,site)}
-          if (graphVal=="GradeLvl") {PlotData <- propTableFun(PlotData,fGradeLvl,site)}
-          if (graphVal=="TestPlMath") {PlotData <- propTableFun(PlotData,mathpl,site)}
-          if (graphVal=="TestPlRead") {PlotData <- propTableFun(PlotData,readpl,site)}
-          if (graphVal=="Lunch") {PlotData = ctsMeans[(ctsMeans$Grade=="All") & (is.element(ctsMeans$Site,c(org,paste0("Non-",org),paste0(site,"\nSch-Based Peers"),site))),]}
-          if (graphVal %in% c("MathME_by_Gr", "ReadME_by_Gr", "MathTestSs_by_Gr","ReadTestSs_by_Gr")) {PlotData = ctsMeans[(ctsMeans$Grade %in% 3:8) & (is.element(ctsMeans$Site,c(org,paste0("Non-",org),paste0(site,"\nSch-Based Peers"),site))),]}
+            return(PlotData)
+          }
+          if (graphVal=="RaceEth")    {PlotData <- propTableFun(PlotData, fRace, site)}
+          if (graphVal=="GradeLvl")   {PlotData <- propTableFun(PlotData, fGradeLvl, site)}
+          if (graphVal=="TestPlMath") {PlotData <- propTableFun(PlotData, mathpl, site)}
+          if (graphVal=="TestPlRead") {PlotData <- propTableFun(PlotData, readpl, site)}
+          if (graphVal=="Lunch") {PlotData <- ctsMeans[(ctsMeans$Grade=="All") & (is.element(ctsMeans$Site,c(org,paste0("Non-",org),paste0(site,"\nSch-Based Peers"),site))),]}
+          if (graphVal %in% c("MathME_by_Gr", "ReadME_by_Gr", "MathTestSs_by_Gr", "ReadTestSs_by_Gr")) {PlotData <- ctsMeans[(ctsMeans$Grade %in% 3:8) & (is.element(ctsMeans$Site,c(org,paste0("Non-",org),paste0(site,"\nSch-Based Peers"),site))),]}
           return(PlotData)
         }  
       }
@@ -103,6 +104,7 @@
 # Parameter order:  c(aesx, aesy, aesfill           # AESTHETICS
                     #  plotTitle,xlabel,ylabel,      # TITLES  
                     #  extra)                        # OTHER PARAMETERS
+  # NSM: This could be done as a list, so that all elements are named (and can be called by that name rather than by index)
   GradeLvl_params <-      c("fGradeLvl", "Freq", "fAnyYss", 
                             "Distribution of Grade Levels", "Grade", "% in Each Grade",
                             "")
@@ -132,6 +134,7 @@
                                "theme(legend.position='bottom', axis.title=element_text(size=7))")
   
   
+
   DemoPlots <- function(site,graphVal,data,aesx,aesy,aesfill,plotTitle,xlab,ylab,extra){
     useFillCat <- c(myfill5, "#885533")
     useFill <- c(myfill5, "#885533", "#BB2800")
@@ -174,7 +177,6 @@
   mapply(BySite, rep(sites,  each=length(toGraph)), rep(toGraph, times=length(sites)))
   
 
-  
   
 ######## ERW: Below is code (whether tables or exceptions) that has not yet been incorporated into the above iterative graphing model  
     
@@ -462,7 +464,7 @@ if (1 == runRegs) {
             Plot_RegAll <- ggplot(data=Eff, aes(x=myX, y=b, fill=myX)) +
               geom_bar(stat="identity", position="dodge") +
               geom_errorbar(aes(ymin=ll, ymax=ul), width=0.1, position=position_dodge(0.1)) +
-              ggtitle("Programming Impacts\non " %&% depVarNames[depVarList == depVar]) +
+              ggtitle("Increasingly Nuanced Analysis\nof " %&% depVarNames[depVarList == depVar]) +
               ylab(depVarYLabs[depVarList == depVar]) +
               theme(axis.title.x=element_blank(), axis.title.y=element_text(size = 8)) +
               guides(fill=guide_legend(title=NULL)) + scale_fill_hue(h=c(100,200), l=40) +
@@ -495,7 +497,7 @@ if (1 == runRegs) {
             Plot_RegAll <- ggplot(data=EffSub, aes(x=myX, y=b, fill=myX)) +
               geom_bar(stat="identity", position="dodge") +
               geom_errorbar(aes(ymin=ll, ymax=ul), width=0.1, position=position_dodge(0.1)) +
-              ggtitle("Programming Impacts\non " %&% depVarNames[depVarList == depVar]) +
+              ggtitle("Remaining Association\nwith " %&% depVarNames[depVarList == depVar]) +
               ylab(addLab %&% depVarYLabs[depVarList == depVar]) + scale_y_continuous(labels = percent) +
               theme(axis.title.x=element_blank(), axis.title.y=element_text(size = 8)) +
               guides(fill=guide_legend(title=NULL)) + scale_fill_hue(h=c(100,200), l=40) +
@@ -531,7 +533,7 @@ if (1 == runRegs) {
             Plot_RegSite <- ggplot(data=plotEff, aes(x=myX, y=b, fill=myX)) +
               geom_bar(stat="identity", position="dodge") +
               geom_errorbar(aes(ymin=ll, ymax=ul), width=0.1, position=position_dodge(0.1)) +
-              ggtitle("Programming Impacts\non " %&% depVarNames[depVarList == depVar]) +
+              ggtitle("Remaining Association\nwith " %&% depVarNames[depVarList == depVar]) +
               ylab(depVarYLabs[depVarList == depVar]) +
               theme(axis.title.x=element_blank(), axis.title.y=element_text(size = 8)) +
               guides(fill=guide_legend(title=NULL)) + scale_fill_hue(h=c(100,200), l=40) +
