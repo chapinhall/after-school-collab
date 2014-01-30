@@ -79,8 +79,7 @@
       if (graphVal=="Lunch") {PlotData = ctsMeans[(ctsMeans$Grade=="All") & (is.element(ctsMeans$Site,c(org,paste0("Non-",org),paste0(org,"\nSch-Based Peers")))),]}
       if (graphVal=="TestPlMath") {PlotData = as.data.frame(prop.table(table(fAnyYss,mathpl),1))}
       if (graphVal=="TestPlRead") {PlotData = as.data.frame(prop.table(table(fAnyYss,readpl),1))}
-      if (graphVal %in% c("MathME_by_Gr", "ReadME_by_Gr")) {PlotData = ctsMeans[(ctsMeans$Grade %in% 3:8) & (is.element(ctsMeans$Site,c(org,paste0("Non-",org),paste0(org,"\nSch-Based Peers")))),]}
-      if (graphVal %in% c("MathByGr","ReadByGr")) {PlotData = ctsMeans[(ctsMeans$Grade %in% 3:8)]}  #### NEED TO CONFIRM CORRECT DATA FOR THESE CHARTS AND ADD SITE LEVEL BELOW
+      if (graphVal %in% c("MathME_by_Gr", "ReadME_by_Gr","MathTestSs_by_Gr","ReadTestSs_by_Gr")) {PlotData = ctsMeans[(ctsMeans$Grade %in% 3:8) & (is.element(ctsMeans$Site,c(org,paste0("Non-",org),paste0(org,"\nSch-Based Peers")))),]}
       if (site=="All") {
         return(PlotData)
         } else {
@@ -94,7 +93,7 @@
           if (graphVal=="TestPlMath") {PlotData <- propTableFun(PlotData,mathpl,site)}
           if (graphVal=="TestPlRead") {PlotData <- propTableFun(PlotData,readpl,site)}
           if (graphVal=="Lunch") {PlotData = ctsMeans[(ctsMeans$Grade=="All") & (is.element(ctsMeans$Site,c(org,paste0("Non-",org),paste0(site,"\nSch-Based Peers"),site))),]}
-          if (graphVal %in% c("MathME_by_Gr", "ReadME_by_Gr")) {PlotData = ctsMeans[(ctsMeans$Grade %in% 3:8) & (is.element(ctsMeans$Site,c(org,paste0("Non-",org),paste0(site,"\nSch-Based Peers"),site))),]}
+          if (graphVal %in% c("MathME_by_Gr", "ReadME_by_Gr", "MathTestSs_by_Gr","ReadTestSs_by_Gr")) {PlotData = ctsMeans[(ctsMeans$Grade %in% 3:8) & (is.element(ctsMeans$Site,c(org,paste0("Non-",org),paste0(site,"\nSch-Based Peers"),site))),]}
           return(PlotData)
         }  
       }
@@ -133,38 +132,6 @@
                                "theme(legend.position='bottom', axis.title=element_text(size=7))")
   
   
-  # Average Test Scores by Grade
-  
-
-  
-  TestByGr$mLabel <- sprintf("%.1f", TestByGr$mathss)
-  TestByGr$rLabel <- sprintf("%.1f", TestByGr$readss)
-  
-  png(file = myGraphOut %&% "CpsVsOrg_MathTestSs_by_Gr_AnyYss.png", res = myRes, width = myWidth, height = myHeight)
-  Plot_MathByGr <- ggplot(data=TestByGr[TestByGr$Grade %in% 3:8,], aes(x=Grade, y=mathss, fill=Site)) + 
-    geom_bar(stat="identity", position="dodge", width=0.7) + 
-    #geom_text(data=TestByGr, aes(x=Grade, y=mathss, label=mLabel, vjust=-1), position = position_dodge(width=0.7)) +
-    ggtitle("Math Scores by Grade") + 
-    scale_fill_manual(values=useFill) +  
-    xlab("Grade") + ylab("Average Test Scale Score") +
-    guides(fill=guide_legend(title=NULL)) +
-    theme(legend.position="bottom", axis.title = element_text(size=7))
-  print(Plot_MathByGr)
-  dev.off()
-  
-  png(file = myGraphOut %&% "CpsVsOrg_ReadTestSs_by_Gr_AnyYss.png", res = myRes, width = myWidth, height = myHeight)
-  Plot_ReadByGr <- ggplot(data=TestByGr[TestByGr$Grade %in% 3:8,], aes(x=Grade, y=readss, fill=Site)) + 
-    geom_bar(stat="identity", position="dodge", width=0.7) + 
-    #geom_text(data=TestByGr, aes(x=Grade, y=readss, label=rLabel, vjust=-1, size=7), position = position_dodge(width=0.7)) +
-    ggtitle("Reading Scores by Grade") + 
-    scale_fill_manual(values=useFill) +  
-    xlab("Grade") + ylab("Average Test Scale Score") +
-    guides(fill=guide_legend(title=NULL)) +
-    theme(legend.position="bottom", axis.title = element_text(size=7))
-  print(Plot_ReadByGr)
-  dev.off()
-  
-  
   DemoPlots <- function(site,graphVal,data,aesx,aesy,aesfill,plotTitle,xlab,ylab,extra){
     useFillCat <- c(myfill5, "#885533")
     useFill <- c(myfill5, "#885533", "#BB2800")
@@ -199,6 +166,8 @@
 #  BySite("South Side YMCA","Lunch")
 #  BySite("South Side YMCA","TestPlMath")
 #  BySite("South Side YMCA","TestPlRead")
+#  BySite("South Side YMCA","MathTestSs_by_Gr")
+#  BySite("South Side YMCA","ReadTestSs_by_Gr")
   
   # Ultimately, loop through varlist and site list like so:
   
