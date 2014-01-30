@@ -69,17 +69,19 @@
   
   org <- "YMCA"
   sites <- c("All",levels(fYssSite))
-  toGraph <- c("GradeLvl", "RaceEth", "Lunch", "TestPlMath", "TestPlRead","MathME_by_Gr","ReadME_by_Gr")
+  toGraph <- c("GradeLvl", "RaceEth", "Lunch", "TestPlMath", "TestPlRead","MathME_by_Gr","ReadME_by_Gr", "MathTestSs_by_Gr", "ReadTestSs_by_Gr", "MathGain", "ReadGain", "PctAtt", "SchAtt_by_ElemGr", "SchAtt_by_HsGr")
 
 # Write a function to define the dataset (since the data needed depends on the site and variable)
   
   getPlotData <- function(graphVal, site){
       if (graphVal=="RaceEth")    {PlotData <- as.data.frame(prop.table(table(fAnyYss, fRace),1))}
       if (graphVal=="GradeLvl")   {PlotData <- as.data.frame(prop.table(table(fAnyYss, fGradeLvl),1))}
-      if (graphVal=="Lunch")      {PlotData <- ctsMeans[(ctsMeans$Grade=="All") & (is.element(ctsMeans$Site,c(org, paste0("Non-", org),paste0(org,"\nSch-Based Peers")))), ]}
+      if (graphVal %in% c("Lunch", "MathGain", "ReadGain", "PctAtt") )     {PlotData <- ctsMeans[(ctsMeans$Grade=="All") & (is.element(ctsMeans$Site,c(org, paste0("Non-", org),paste0(org,"\nSch-Based Peers")))), ]}
       if (graphVal=="TestPlMath") {PlotData <- as.data.frame(prop.table(table(fAnyYss,mathpl),1))}
       if (graphVal=="TestPlRead") {PlotData <- as.data.frame(prop.table(table(fAnyYss,readpl),1))}
-      if (graphVal %in% c("MathME_by_Gr", "ReadME_by_Gr","MathTestSs_by_Gr","ReadTestSs_by_Gr")) {PlotData <- ctsMeans[(ctsMeans$Grade %in% 3:8) & (is.element(ctsMeans$Site,c(org,paste0("Non-", org),paste0(org, "\nSch-Based Peers")))),]}
+      if (graphVal %in% c("MathME_by_Gr", "ReadME_by_Gr","MathTestSs_by_Gr","ReadTestSs_by_Gr", "SchAtt_by_ElemGr")) {PlotData <- ctsMeans[(ctsMeans$Grade %in% 3:8) & (is.element(ctsMeans$Site,c(org,paste0("Non-", org),paste0(org, "\nSch-Based Peers")))),]}
+      if (graphVal %in% c("SchAtt_by_ElemGr")) {PlotData <- ctsMeans[(ctsMeans$Grade %in% 1:8) & (is.element(ctsMeans$Site,c(org,paste0("Non-", org),paste0(org, "\nSch-Based Peers")))),]}
+      if (graphVal %in% c("SchAtt_by_HsGr")) {PlotData <- ctsMeans[(ctsMeans$Grade %in% 9:12) & (is.element(ctsMeans$Site,c(org,paste0("Non-", org),paste0(org, "\nSch-Based Peers")))),]}
       if (site=="All") {
         return(PlotData)
         } else {
@@ -93,8 +95,10 @@
           if (graphVal=="GradeLvl")   {PlotData <- propTableFun(PlotData, fGradeLvl, site)}
           if (graphVal=="TestPlMath") {PlotData <- propTableFun(PlotData, mathpl, site)}
           if (graphVal=="TestPlRead") {PlotData <- propTableFun(PlotData, readpl, site)}
-          if (graphVal=="Lunch") {PlotData <- ctsMeans[(ctsMeans$Grade=="All") & (is.element(ctsMeans$Site,c(org,paste0("Non-",org),paste0(site,"\nSch-Based Peers"),site))),]}
-          if (graphVal %in% c("MathME_by_Gr", "ReadME_by_Gr", "MathTestSs_by_Gr", "ReadTestSs_by_Gr")) {PlotData <- ctsMeans[(ctsMeans$Grade %in% 3:8) & (is.element(ctsMeans$Site,c(org,paste0("Non-",org),paste0(site,"\nSch-Based Peers"),site))),]}
+          if (graphVal %in% c("Lunch", "MathGain", "ReadGain", "PctAtt") ) {PlotData <- ctsMeans[(ctsMeans$Grade=="All") & (is.element(ctsMeans$Site,c(org,paste0("Non-",org),paste0(site,"\nSch-Based Peers"),site))),]}
+          if (graphVal %in% c("MathME_by_Gr", "ReadME_by_Gr", "MathTestSs_by_Gr", "ReadTestSs_by_Gr", "SchAtt_by_ElemGr")) {PlotData <- ctsMeans[(ctsMeans$Grade %in% 3:8) & (is.element(ctsMeans$Site,c(org,paste0("Non-",org),paste0(site,"\nSch-Based Peers"),site))),]}
+          if (graphVal %in% c("SchAtt_by_ElemGr")) {PlotData <- ctsMeans[(ctsMeans$Grade %in% 1:8) & (is.element(ctsMeans$Site,c(org,paste0("Non-",org),paste0(site,"\nSch-Based Peers"),site))),]}
+          if (graphVal %in% c("SchAtt_by_HsGr")) {PlotData <- ctsMeans[(ctsMeans$Grade %in% 9:12) & (is.element(ctsMeans$Site,c(org,paste0("Non-",org),paste0(site,"\nSch-Based Peers"),site))),]}
           return(PlotData)
         }  
       }
@@ -105,36 +109,52 @@
                     #  plotTitle,xlabel,ylabel,      # TITLES  
                     #  extra)                        # OTHER PARAMETERS
   # NSM: This could be done as a list, so that all elements are named (and can be called by that name rather than by index)
-  GradeLvl_params <-      c("fGradeLvl", "Freq", "fAnyYss", 
-                            "Distribution of Grade Levels", "Grade", "% in Each Grade",
-                            "")
-  RaceEth_params <-       c("fRace", "Freq", "fAnyYss", 
-                            "Comparison of Race/Ethnicity", "", "% in Each Race/Eth Group",
-                            "theme(axis.title.x=element_blank(), axis.title.y=element_text(size = 8))")
-  Lunch_params <-         c("Site", "bLunch_FR", "Site", 
-                            "% Free/Reduced Price Lunch", "", "Proportion on Free/Reduced Price Lunch",
-                            "") #"geom_text(data=data, aes(x=Site, y=bLunch_FR, label = sprintf('%.1f%%', data$bLunch_FR*100), vjust = -1), size = 6)")
-  TestPlMath_params <-    c("mathpl","Freq","fAnyYss",
-                            "Tested Proficiency\nLevels - Math","","% in Performance Category",
-                            "theme(axis.title.x=element_blank(), axis.title.y=element_text(size=7))") #+ geom_text(data=data, aes(x=mathpl, y=Freq, label=sprintf('%.1f%%', data$Freq*100), vjust=-1), position = position_dodge(width=0.7), size = 6) + #vjust=-1, hjust=HAdj, size=7))
-  TestPlRead_params <-    c("readpl","Freq","fAnyYss",
-                            "Tested Proficiency\nLevels - Reading","","% in Performance Category",
-                            "theme(axis.title.x=element_blank(), axis.title.y=element_text(size=7))") #+ geom_text(data=data, aes(x=readpl, y=Freq, label=sprintf('%.1f%%', data$Freq*100), vjust=-1), position = position_dodge(width=0.7), size = 6) + #vjust=-1, hjust=HAdj, size=7))
-  MathME_by_Gr_params <-  c("Grade","mathpl_ME","Site",
-                            "% Meets/Exceeds Standard\nfor Math Proficiency","Grade","% Meets/Exceeds",
-                            "theme(axis.text=element_text(size=7))") #+ geom_text(data=data, aes(x=Grade, y=mathpl_ME, label=sprintf('%.1f%%', data$mathpl_ME*100), vjust=-1), position = position_dodge(width=0.7))
-  ReadME_by_Gr_params <-  c("Grade","readpl_ME","Site",
-                            "% Meets/Exceeds Standard\nfor Reading Proficiency","Grade","% Meets/Exceeds",
-                            "theme(axis.text=element_text(size=7))") #+ geom_text(data=data, aes(x=Grade, y=mathpl_ME, label=sprintf('%.1f%%', data$readpl_ME*100), vjust=-1), position = position_dodge(width=0.7))
-  MathTestSs_by_Gr_params <- c("Grade","mathss","Site",
-                               "Math Scores by Grade","Grade","Average Test Scale Score",
-                               "theme(legend.position='bottom', axis.title=element_text(size=7))")
-  ReadTestSs_by_Gr_params <- c("Grade","readss","Site",
-                               "Reading Scores by Grade","Grade","Average Test Scale Score",
-                               "theme(legend.position='bottom', axis.title=element_text(size=7))")
-  
+  GradeLvl_params <-      c(aesx = "fGradeLvl", aesy = "Freq", aesfill = "fAnyYss", 
+                            plotTitle = "Distribution of Grade Levels", xlabel = "Grade", ylabel = "% in Each Grade",
+                            extra = "")
+  RaceEth_params <-       c(aesx = "fRace", aesy = "Freq", aesfill = "fAnyYss", 
+                            plotTitle = "Comparison of Race/Ethnicity", xlabel = "", ylabel = "% in Each Race/Eth Group",
+                            extra = "theme(axis.title.x=element_blank(), axis.title.y=element_text(size = 8))")
+  Lunch_params <-         c(aesx = "Site", aesy = "bLunch_FR", aesfill = "Site", 
+                            plotTitle = "% Free/Reduced Price Lunch", xlabel = "", ylabel = "Proportion on Free/Reduced Price Lunch",
+                            extra = "") #"geom_text(data=data, aes(x=Site, y=bLunch_FR, label = sprintf('%.1f%%', data$bLunch_FR*100), vjust = -1), size = 6)")
+  TestPlMath_params <-    c(aesx = "mathpl",aesy = "Freq",aesfill = "fAnyYss",
+                            plotTitle = "Tested Proficiency\nLevels - Math", xlabel = "", ylabel = "% in Performance Category",
+                            extra = "theme(axis.title.x=element_blank(), axis.title.y=element_text(size=7))") #+ geom_text(data=data, aes(x=mathpl, y=Freq, label=sprintf('%.1f%%', data$Freq*100), vjust=-1), position = position_dodge(width=0.7), size = 6) + #vjust=-1, hjust=HAdj, size=7))
+  TestPlRead_params <-    c(aesx = "readpl",aesy = "Freq",aesfill = "fAnyYss",
+                            plotTitle = "Tested Proficiency\nLevels - Reading", xlabel = "",  ylabel = "% in Performance Category",
+                            extra = "theme(axis.title.x=element_blank(), axis.title.y=element_text(size=7))") #+ geom_text(data=data, aes(x=readpl, y=Freq, label=sprintf('%.1f%%', data$Freq*100), vjust=-1), position = position_dodge(width=0.7), size = 6) + #vjust=-1, hjust=HAdj, size=7))
+  MathME_by_Gr_params <-  c(aesx = "Grade", aesy = "mathpl_ME", aesfill = "Site",
+                            plotTitle = "% Meets/Exceeds Standard\nfor Math Proficiency", xlabel = "Grade", ylabel = "% Meets/Exceeds",
+                            extra = "theme(axis.text=element_text(size=7))") #+ geom_text(data=data, aes(x=Grade, y=mathpl_ME, label=sprintf('%.1f%%', data$mathpl_ME*100), vjust=-1), position = position_dodge(width=0.7))
+  ReadME_by_Gr_params <-  c(aesx = "Grade", aesy = "readpl_ME", aesfill = "Site",
+                            plotTitle = "% Meets/Exceeds Standard\nfor Reading Proficiency", xlabel = "Grade", ylabel = "% Meets/Exceeds",
+                            extra = "theme(axis.text=element_text(size=7))") #+ geom_text(data=data, aes(x=Grade, y=mathpl_ME, label=sprintf('%.1f%%', data$readpl_ME*100), vjust=-1), position = position_dodge(width=0.7))
+  MathTestSs_by_Gr_params <- c(aesx = "Grade", aesy = "mathss", aesfill = "Site",
+                               plotTitle = "Math Scores by Grade", xlabel = "Grade", ylabel = "Average Test Scale Score",
+                               extra = "theme(legend.position='bottom', axis.title=element_text(size=7))")
+  ReadTestSs_by_Gr_params <- c(aesx = "Grade", aesy = "readss", aesfill = "Site",
+                               plotTitle = "Reading Scores by Grade",xlabel = "Grade", ylabel = "Average Test Scale Score",
+                               extra = "theme(legend.position='bottom', axis.title=element_text(size=7))")
+  MathGain_params <-      c(aesx = "Site", aesy = "mathgain", aesfill = "Site",
+                               plotTitle = "Average Test Score Gain - Math",xlabel = "", ylabel = "Average Test Scale Score",
+                               extra = theme(axis.title.x=element_blank(), axis.title.y=element_text(size = 8), legend.position="bottom") ) # + geom_text(data=AvgGain, aes(x=VarName, y=value, label=mLabel, vjust=-1), position = position_dodge(width=0.7))
+  ReadGain_params <-      c(aesx = "Site", aesy = "readgain", aesfill = "Site",
+                            plotTitle = "Average Test Score Gain - Reading",xlabel = "", ylabel = "Average Test Scale Score",
+                            extra = theme(axis.title.x=element_blank(), axis.title.y=element_text(size = 8), legend.position="bottom") ) # + geom_text(data=AvgGain, aes(x=VarName, y=value, label=mLabel, vjust=-1), position = position_dodge(width=0.7))
+  ## ERW: MathGain and ReadGain used to be on one graph, but we need to come up with a way to rework the data to do that.
+  PctAtt_params <-        c(aesx = "Site", aesy = "Pct_Attend", aesfill = "Site",
+                                plotTitle = "Average School Attendance", xlabel = "", ylabel = "Average Rate of School Attendance",
+                                extra = "scale_y_continuous(labels = percent, breaks=seq(0.5, 1.0, 0.1), limits=c(0.5, 1.0), oob=squish) + theme(axis.title.x=element_blank(), axis.title.y=element_text(size = 7), legend.position='none')" ) #+ geom_text(data=PctAtt, aes(x=Site, y=Pct_Attend, label=mLabel, vjust=-1), size=6)
+  SchAtt_by_ElemGr_params <- c(aesx = "Grade", aesy = "Pct_Attend", aesfill = "Site",
+                               plotTitle = "School Attendance by Grade",xlabel = "Grade", ylabel = "% Days Attending School",
+                               extra = "scale_y_continuous(labels = percent, breaks=seq(0.5,1.0,0.1), limits=c(0.5, 1.0), oob = squish) + theme(legend.position='bottom')") # + geom_text(data=AttByGr[AttByGr$Grade %in% 1:8,], aes(x=Grade, y=Pct_Attend, label=mLabel, vjust=-1, hjust=HAdj, size=7))
+  SchAtt_by_HsGr_params <- c(aesx = "Grade", aesy = "Pct_Attend", aesfill = "Site",
+                               plotTitle = "School Attendance by Grade",xlabel = "Grade", ylabel = "% Days Attending School",
+                               extra = "scale_y_continuous(labels = percent, breaks=seq(0.5,1.0,0.1), limits=c(0.5, 1.0), oob = squish) + theme(legend.position='bottom')") # + geom_text(data=AttByGr[AttByGr$Grade %in% 1:8,], aes(x=Grade, y=Pct_Attend, label=mLabel, vjust=-1, hjust=HAdj, size=7))
   
 
+  
   DemoPlots <- function(site,graphVal,data,aesx,aesy,aesfill,plotTitle,xlab,ylab,extra){
     useFillCat <- c(myfill5, "#885533")
     useFill <- c(myfill5, "#885533", "#BB2800")
@@ -158,7 +178,7 @@
     dir.create(file.path("g:/YSS_Graph_Testing",site,fsep=""),showWarnings = F)
     params <- eval(parse(text = paste0(graphVal,"_params")))
     PlotData <- getPlotData(graphVal,site)
-    DemoPlots(site,graphVal,PlotData,params[1],params[2],params[3],params[4],params[5],params[6],eval(parse(text = params[7])))
+    DemoPlots(site,graphVal,PlotData,params["aesx"],params["aesy"],params["aesfill"],params["plotTitle"],params["xlabel"],params["ylabel"],eval(parse(text = params["extra"])))
   }
   
   
@@ -171,18 +191,20 @@
 #  BySite("South Side YMCA","TestPlRead")
 #  BySite("South Side YMCA","MathTestSs_by_Gr")
 #  BySite("South Side YMCA","ReadTestSs_by_Gr")
+#  BySite("South Side YMCA","MathGain")
+#  BySite("South Side YMCA","ReadGain")
+#  BySite("South Side YMCA", "PctAtt")
+#  BySite("South Side YMCA", "SchAtt_by_ElemGr")
+#  BySite("South Side YMCA", "SchAtt_by_HsGr")
+  
   
   # Ultimately, loop through varlist and site list like so:
   
   mapply(BySite, rep(sites,  each=length(toGraph)), rep(toGraph, times=length(sites)))
   
 
-  
-######## ERW: Below is code (whether tables or exceptions) that has not yet been incorporated into the above iterative graphing model  
     
-
-    
-    # Neighborhood characteristics
+    # Graph Neighborhood characteristics - this graph is different from above
       DemNbr <- melt(ctsPlotData[, c("Site", "Tract_Pct_LtHsEd", "Tract_Pct_VacantUnits", "Tract_ViolentCrimes_PerHundr", "Tract_Pct_IncRatKidsLt6_Lt100", "Tract_Pct_NonEnglLangSpokenAtHome")], id=("Site"))
       
       DemNbr$VarName[DemNbr$variable=="Tract_Pct_LtHsEd"] <- "Prop'n <\nHS Ed"
@@ -206,96 +228,10 @@
         print(Plot_Nbhd)
       dev.off()
     
-    # Plot comparison of only Violent crimes -- (good for a single test case)
-      CrimeOnly <- DemNbr[DemNbr$variable == "Tract_ViolentCrimes_PerHundr",]
-      CrimeOnly <- CrimeOnly[CrimeOnly$Site != "Org Alpha\nSch-Based Peers",]
-      png(file = myGraphOut %&% "CpsVsOrg_Crime_AnyYss.png", res = myRes, width = myWidth, height = myHeight)
-        Plot_Crime <- ggplot(data=CrimeOnly, aes(x=Site, y=value, fill=Site)) + 
-          geom_bar(stat="identity", position="dodge", width=0.7) +
-          #geom_text(data=DemNbr, aes(x=VarName, y=value, label=mLabel, vjust=-1), position = position_dodge(width=0.7), size=5) +
-          ggtitle("Comparison of Crime\nin Youth Neighborhoods") +
-          theme(legend.position="bottom") +
-          theme(axis.text=element_text(size=7), axis.title.x=element_blank()) +
-          ylab("Violent Crimes per 100 Residents") +
-          scale_fill_manual(values=useFillCat) +
-          guides(fill=guide_legend(title=NULL))
-        print(Plot_Crime)
-      dev.off()
-    
-      
-      
-
-    
-    
-    # Average test gains
-    
-      AvgGain <- melt(ctsPlotData[, c("Site", "mathgain", "readgain")], id="Site")
-      AvgGain$VarName[AvgGain$variable=="mathgain"] <- "Scale Score\nGain - Math"
-      AvgGain$VarName[AvgGain$variable=="readgain"] <- "Scale Score\nGain - Reading"
-  
-      AvgGain$mLabel <- sprintf("%.1f", AvgGain$value)
-      
-      png(file = myGraphOut %&% "CpsVsOrg_TestGain_AnyYss.png", res = myRes, width = myWidth, height = myHeight)
-        Plot_AvgGain <- ggplot(data=AvgGain, aes(x=VarName, y=value, fill=Site)) + 
-          geom_bar(stat="identity", position="dodge", width=0.7) +
-          geom_text(data=AvgGain, aes(x=VarName, y=value, label=mLabel, vjust=-1), position = position_dodge(width=0.7)) +
-          ggtitle("Average Test Score Gain") +
-          ylab("Average Scale Score Gain") +  
-          theme(axis.title.x=element_blank(), axis.title.y=element_text(size = 8), legend.position="bottom") +
-          scale_fill_manual(values=useFill) +
-          guides(fill=guide_legend(title=NULL))
-        print(Plot_AvgGain)
-      dev.off()
       
     
-    # Average Percent Attendance
-
-      PctAtt <- ctsPlotData[, c("Site", "Pct_Attend")]
-      PctAtt$mLabel <- sprintf("%.1f%%", PctAtt$Pct_Attend*100)
+   
       
-      png(file = myGraphOut %&% "CpsVsOrg_PctAtt_AnyYss.png", res = myRes, width = myWidth, height = myHeight)
-        Plot_PctAtt <- ggplot(data=PctAtt, aes(x=Site, y=Pct_Attend)) +
-          geom_bar(stat="identity", position="dodge", aes(fill=rownames(PctAtt)), width=0.7) +
-          geom_text(data=PctAtt, aes(x=Site, y=Pct_Attend, label=mLabel, vjust=-1), size=6) +
-          ggtitle("Average School Attendance") +
-          ylab("Average Rate of School Attendance") + 
-          scale_y_continuous(labels = percent, breaks=seq(0.5, 1.0, 0.1), limits=c(0.5, 1.0), oob=squish) +
-          theme(axis.title.x=element_blank(), axis.title.y=element_text(size = 7), legend.position="none") +
-          scale_fill_manual(values=useFill) +
-          guides(fill=guide_legend(title=NULL))
-        print(Plot_PctAtt)
-      dev.off()
-      
-    # Rate of Attendance by Grade
-    
-      AttByGr <- ctsPlotDataGr[, c("Site", "Grade", "Pct_Attend")]
-      AttByGr$mLabel <- sprintf("%.1f%%", AttByGr$Pct_Attend*100)
-    
-      png(file = myGraphOut %&% "CpsVsOrg_SchAtt_by_ElemGr_AnyYss.png", res = myRes, width = myWidth, height = myHeight)
-        Plot_PctElemAttByGr <- ggplot(data=AttByGr[AttByGr$Grade %in% 1:8,], aes(x=Grade, y=Pct_Attend, fill=Site)) + 
-          geom_bar(stat="identity", position="dodge", width=0.7) + 
-          #geom_text(data=AttByGr[AttByGr$Grade %in% 1:8,], aes(x=Grade, y=Pct_Attend, label=mLabel, vjust=-1, hjust=HAdj, size=7)) +
-          ggtitle("School Attendance by Grade") + 
-          scale_fill_manual(values=useFillCat) +  
-          xlab("Grade") + ylab("% Days Attending School") +
-          scale_y_continuous(labels = percent, breaks=seq(0.5,1.0,0.1), limits=c(0.5, 1.0), oob = squish) +
-          guides(fill=guide_legend(title=NULL)) +
-          theme(legend.position="bottom")
-        print(Plot_PctElemAttByGr)
-      dev.off()
-    
-      png(file = myGraphOut %&% "CpsVsOrg_SchAtt_by_HsGr_AnyYss.png", res = myRes, width = myWidth, height = myHeight)
-        Plot_PctHsAttGr <- ggplot(data=AttByGr[AttByGr$Grade %in% 9:12,], aes(x=Grade, y=Pct_Attend, fill=Site)) + 
-          geom_bar(stat="identity", position="dodge", width=0.7) + 
-          ggtitle("School Attendance by Grade") + 
-          #geom_text(data=AttByGr[AttByGr$Grade %in% 9:12,], aes(x=Grade, y=Pct_Attend, label=mLabel, vjust=-1, hjust=HAdj, size=7)) +
-          xlab("Grade") + ylab("% Days Attending School") +
-          scale_y_continuous(labels = percent, breaks=seq(0.5,1.0,0.1), limits=c(0.5, 1.0), oob = squish) +
-          scale_fill_manual(values=useFillCat) +  
-          guides(fill=guide_legend(title=NULL)) +
-          theme(legend.position="bottom")
-        print(Plot_PctHsAttGr)
-      dev.off() 
   
     
   
