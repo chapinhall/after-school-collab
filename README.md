@@ -9,11 +9,12 @@ In cooperation with large non-profit organizations (NPO) and public agencies, Ch
 * After School Matters
 * UCAN
 * Chicago Public Libraries
-<img src="http://www.indeed.com/cmp/_s/logos/d68b928dd5077a4e" width="300" align="left">
-<img src="https://github.com/chapinhall/after-school-collab/blob/master/img/children's%20home%20and%20aid.jpg" width="300" align="right">
-<img src="https://github.com/chapinhall/after-school-collab/blob/master/img/asm_logo_green.jpg" width="300" align="left">
-<img src="https://github.com/chapinhall/after-school-collab/blob/master/img/ucan%20logo.jpg" width="300" align="right">
-<img src="https://github.com/chapinhall/after-school-collab/blob/master/img/library%20logo.GIF" width="300" align="left">
+
+<img src="http://www.indeed.com/cmp/_s/logos/d68b928dd5077a4e" width="150" align="left">
+<img src="https://fbcdn-profile-a.akamaihd.net/hprofile-ak-frc3/t1/p160x160/548371_10150709111713959_141175662_a.jpg" width="150" align="right">
+<img src="http://www.afterschoolmatters.org/sites/default/files/asm_logo_2color.png" width="300" align="left">
+<img src="https://evbdn.eventbrite.com/s3-s3/eventlogos/5398039/ucantmlargegreenlogojpg.jpg" width="300" align="left">
+<img src="http://schurzhs.org/pics/library%20logo.GIF" width="300" align="left">
 
 ### Current agency partners contributing data are:
 * Chicago Public Schools
