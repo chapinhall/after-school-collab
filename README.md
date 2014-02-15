@@ -10,10 +10,12 @@ In cooperation with large non-profit organizations (NPO) and public agencies, Ch
 * UCAN
 * Chicago Public Libraries
 
-|Test with|Tables|
-|Col 1    |Col 2 |
 
-
+|||
+|:-----:|:------:|
+|<img src="http://www.indeed.com/cmp/_s/logos/d68b928dd5077a4e" width="150"> | <img src="https://fbcdn-profile-a.akamaihd.net/hprofile-ak-frc3/t1/p160x160/548371_10150709111713959_141175662_a.jpg" width="150"> |
+|<img src="http://www.afterschoolmatters.org/sites/default/files/asm_logo_2color.png" width="300"> | <img src="https://evbdn.eventbrite.com/s3-s3/eventlogos/5398039/ucantmlargegreenlogojpg.jpg" width="300">|
+|<img src="http://schurzhs.org/pics/library%20logo.GIF" width="300">||
 
 ---
 
