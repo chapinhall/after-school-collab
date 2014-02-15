@@ -18,7 +18,6 @@ In cooperation with large non-profit organizations (NPO) and public agencies, Ch
 <img src="http://schurzhs.org/pics/library%20logo.GIF" width="300" align="left">
 
 
-
 ### Current agency partners contributing data are:
 * Chicago Public Schools
 
