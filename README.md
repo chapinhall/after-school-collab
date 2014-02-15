@@ -9,6 +9,11 @@ In cooperation with large non-profit organizations (NPO) and public agencies, Ch
 * After School Matters
 * UCAN
 * Chicago Public Libraries
+<img src="https://github.com/chapinhall/after-school-collab/blob/master/img/ymca%20logo.jpg" width="300" align="left">
+<img src="https://github.com/chapinhall/after-school-collab/blob/master/img/children's%20home%20and%20aid.jpg" width="300" align="right">
+<img src="https://github.com/chapinhall/after-school-collab/blob/master/img/asm_logo_green.jpg" width="300" align="left">
+<img src="https://github.com/chapinhall/after-school-collab/blob/master/img/ucan%20logo.jpg" width="300" align="right">
+<img src="https://github.com/chapinhall/after-school-collab/blob/master/img/library%20logo.GIF" width="300" align="left">
 
 ### Current agency partners contributing data are:
 * Chicago Public Schools
