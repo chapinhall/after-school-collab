@@ -11,12 +11,14 @@ In cooperation with large non-profit organizations (NPO) and public agencies, Ch
 * Chicago Public Libraries
 
 
-![YMCA]("http://www.indeed.com/cmp/_s/logos/d68b928dd5077a4e")
-![CH+A]("https://fbcdn-profile-a.akamaihd.net/hprofile-ak-frc3/t1/p160x160/548371_10150709111713959_141175662_a.jpg")
-![ASM]("http://www.afterschoolmatters.org/sites/default/files/asm_logo_2color.png")
-![UCAN]("https://evbdn.eventbrite.com/s3-s3/eventlogos/5398039/ucantmlargegreenlogojpg.jpg")
-![CPL]("http://schurzhs.org/pics/library%20logo.GIF")
+<img src="http://www.indeed.com/cmp/_s/logos/d68b928dd5077a4e" width="150" align="left">
+<img src="https://fbcdn-profile-a.akamaihd.net/hprofile-ak-frc3/t1/p160x160/548371_10150709111713959_141175662_a.jpg" width="150" align="right">
+<img src="http://www.afterschoolmatters.org/sites/default/files/asm_logo_2color.png" width="300" align="left">
+<img src="https://evbdn.eventbrite.com/s3-s3/eventlogos/5398039/ucantmlargegreenlogojpg.jpg" width="300" align="left">
+<img src="http://schurzhs.org/pics/library%20logo.GIF" width="300" align="left">
 
+
+---
 
 ### Current agency partners contributing data are:
 * Chicago Public Schools
