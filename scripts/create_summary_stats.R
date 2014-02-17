@@ -74,23 +74,25 @@
   colnames(ctsMean_byOrgGr)[1]  <- "Org"; ctsMean_byOrgGr$Site <- paste("All", myOrg); colnames(ctsMean_byOrgGr)[2]  <- "Grade"
   colnames(ctsMean_bySiteGr)[1] <- "Org"; colnames(ctsMean_bySiteGr)[2] <- "Site";     colnames(ctsMean_bySiteGr)[3] <- "Grade"
   
-  ctsMean <- rbind(ctsMean_byOrg, ctsMean_byOrgGr, ctsMean_bySite, ctsMean_bySiteGr)
-  ctsMean$Org  <- as.character(ctsMean$Org)
-  ctsMean$Site <- as.character(ctsMean$Site)
-  
-  
-  
-  #ctsMean_bySch     <- aggregate(myData[, ctsVars], list(schlid),              mean, na.rm = T)
-  #ctsMean_bySchGr   <- aggregate(myData[, ctsVars], list(schlid, fGradeLvl),   mean, na.rm = T)
-  #colnames(ctsMean_bySch)[1]    <- "Site"; ctsMean_bySch$Grade  <- "All"; 
-  #colnames(ctsMean_bySchGr)[1]  <- "Site"; colnames(ctsMean_bySchGr)[2] <- "Grade"
-
 ## Combine summary statistics across different measures into one data frame
   
-  statDFs <- list(ctsMean_bySiteGr, ctsMean_byAny, ctsMean_byAnyGr, ctsMean_bySite) # ctsMean_bySch, ctsMean_bySchGr
-  siteAsChar <- function(df){df$Site <- as.character(df$Site); return(df)}
-  statDFs2 <- lapply(statDFs, siteAsChar)
-  ctsMeans <- do.call("rbind", statDFs2)
+  ctsMean <- rbind(ctsMean_byOrg, ctsMean_byOrgGr, ctsMean_bySite, ctsMean_bySiteGr)
+  ctsMean$Org  <- as.character(ctsMean$Org)
+  ctsMean$Site <- as.character(ctsMean$Site)  
+  
+    #statDFs <- list(ctsMean_bySiteGr, ctsMean_byAny, ctsMean_byAnyGr, ctsMean_bySite) # ctsMean_bySch, ctsMean_bySchGr
+    #siteAsChar <- function(df){df$Site <- as.character(df$Site); return(df)}
+    #statDFs2 <- lapply(statDFs, siteAsChar)
+    #ctsMeans <- do.call("rbind", statDFs2)
+  
+    #ctsMean_bySch     <- aggregate(myData[, ctsVars], list(schlid),              mean, na.rm = T)
+    #ctsMean_bySchGr   <- aggregate(myData[, ctsVars], list(schlid, fGradeLvl),   mean, na.rm = T)
+    #colnames(ctsMean_bySch)[1]    <- "Site"; ctsMean_bySch$Grade  <- "All"; 
+    #colnames(ctsMean_bySchGr)[1]  <- "Site"; colnames(ctsMean_bySchGr)[2] <- "Grade"
+
+
+  
+  
   
 ## Calculate summary statistics for categorical measures
     
