@@ -1,9 +1,9 @@
 #---------------------------------------------#
 #---------------------------------------------#
-# CREATE DESCRIPTIVE SUMMARY STATISTICS	    # 
+# CREATE DESCRIPTIVE SUMMARY STATISTICS	      # 
 #                                             #
 # Authors: Nick Mader, Ian Matthew Morey,     # 
-#		    and Emily Wiegand		    #  
+#		    and Emily Wiegand		                  #  
 #---------------------------------------------#
 #---------------------------------------------#
 
@@ -44,35 +44,52 @@
 
   attach(myData)
   
+## XXX Will need to farm this into data prep code
+  myData$bYmca     <- as.numeric(myData$fAnyYss=="YMCA")
+  myData$fYmcaSite <- fYssSite
 
 ## Select variables to summarize
 
   cNames <- colnames(myData)
-  ctsVars <- c("mathss", "readss", "mathgain", "readgain", "mathpl_ME", "readpl_ME", "Pct_Attend", grep("bRace", cNames, value=T),grep("bLunch", cNames, value=T), grep("Tract_", cNames, value=T))  
+  ctsVars <- c("mathss", "readss", "mathgain", "readgain", "mathpl_ME", "readpl_ME", "Pct_Attend",
+               grep("bRace",  cNames, value=T),
+               grep("bLunch", cNames, value=T),
+               grep("Tract_", cNames, value=T))  
   catVars <- c("mathpl", "readpl", "fGradeLvl", "fRace")
   #ctsVars <- c("mathss", "readss")
   
 ## Calculate summary statistics for continuous measures
-    
-  ctsMean_byAny     <- aggregate(myData[, ctsVars], list(fAnyYss),               mean, na.rm = T)
-  ctsMean_byAnyGr   <- aggregate(myData[, ctsVars], list(fAnyYss, fGradeLvl),    mean, na.rm = T)
-  ctsMean_bySite    <- aggregate(myData[, ctsVars], list(fYssSite),            mean, na.rm = T)
-  ctsMean_bySiteGr  <- aggregate(myData[, ctsVars], list(fYssSite, fGradeLvl), mean, na.rm = T)
-  ctsMean_bySch     <- aggregate(myData[, ctsVars], list(schlid),                mean, na.rm = T)
-  ctsMean_bySchGr   <- aggregate(myData[, ctsVars], list(schlid, fGradeLvl),     mean, na.rm = T)
+  myOrg <- "Ymca" # Am setting this up to eventually be an lapply across organization names
+  bOrg  <- get(paste0("b", myOrg))
+  fOrg  <- factor(bOrg, levels = c(0, 1), labels=(c(paste0("Non-", myOrg), myOrg)))
+  fSite <- get(paste0("f", myOrg, "Site"))
+  ctsMean_byOrg     <- aggregate(myData[, ctsVars], list(fOrg                  ), mean, na.rm = T)
+  ctsMean_bySite    <- aggregate(myData[, ctsVars], list(fOrg, fSite           ), mean, na.rm = T)
+  ctsMean_byOrgGr   <- aggregate(myData[, ctsVars], list(fOrg,        fGradeLvl), mean, na.rm = T)
+  ctsMean_bySiteGr  <- aggregate(myData[, ctsVars], list(fOrg, fSite, fGradeLvl), mean, na.rm = T)
   
-  colnames(ctsMean_byAny)[1]    <- "Site"; ctsMean_byAny$Grade <- "All"
-  colnames(ctsMean_byAnyGr)[1]  <- "Site"; colnames(ctsMean_byAnyGr)[2] <- "Grade"
-  colnames(ctsMean_bySite)[1]   <- "Site"; ctsMean_bySite$Grade <- "All"
-  colnames(ctsMean_bySiteGr)[1] <- "Site"; colnames(ctsMean_bySiteGr)[2] <- "Grade"
-  colnames(ctsMean_bySch)[1]    <- "Site"; ctsMean_bySch$Grade <- "All"
-  colnames(ctsMean_bySchGr)[1]  <- "Site"; colnames(ctsMean_bySchGr)[2] <- "Grade"
+  
+  colnames(ctsMean_byOrg)[1]    <- "Org"; ctsMean_byOrg$Site <- paste("All", myOrg);   ctsMean_byOrg$Grade  <- "All"
+  colnames(ctsMean_bySite)[1]   <- "Org"; colnames(ctsMean_bySite)[2] <- "Site";       ctsMean_bySite$Grade <- "All"
+  colnames(ctsMean_byOrgGr)[1]  <- "Org"; ctsMean_byOrgGr$Site <- paste("All", myOrg); colnames(ctsMean_byOrgGr)[2]  <- "Grade"
+  colnames(ctsMean_bySiteGr)[1] <- "Org"; colnames(ctsMean_bySiteGr)[2] <- "Site";     colnames(ctsMean_bySiteGr)[3] <- "Grade"
+  
+  ctsMean <- rbind(ctsMean_byOrg, ctsMean_byOrgGr, ctsMean_bySite, ctsMean_bySiteGr)
+  ctsMean$Org  <- as.character(ctsMean$Org)
+  ctsMean$Site <- as.character(ctsMean$Site)
+  
+  
+  
+  #ctsMean_bySch     <- aggregate(myData[, ctsVars], list(schlid),              mean, na.rm = T)
+  #ctsMean_bySchGr   <- aggregate(myData[, ctsVars], list(schlid, fGradeLvl),   mean, na.rm = T)
+  #colnames(ctsMean_bySch)[1]    <- "Site"; ctsMean_bySch$Grade  <- "All"; 
+  #colnames(ctsMean_bySchGr)[1]  <- "Site"; colnames(ctsMean_bySchGr)[2] <- "Grade"
 
 ## Combine summary statistics across different measures into one data frame
   
-  statDFs <- list(ctsMean_bySiteGr,ctsMean_byAny,ctsMean_byAnyGr,ctsMean_bySite,ctsMean_bySch,ctsMean_bySchGr)
+  statDFs <- list(ctsMean_bySiteGr, ctsMean_byAny, ctsMean_byAnyGr, ctsMean_bySite) # ctsMean_bySch, ctsMean_bySchGr
   siteAsChar <- function(df){df$Site <- as.character(df$Site); return(df)}
-  statDFs2 <- lapply(statDFs,siteAsChar)
+  statDFs2 <- lapply(statDFs, siteAsChar)
   ctsMeans <- do.call("rbind", statDFs2)
   
 ## Calculate summary statistics for categorical measures
@@ -142,9 +159,9 @@
   Sites <- levels(fYssSite) # Remember that ctsVars is a list of all variables
   
   PeerAvgs_bySite <- t(mapply(PeerAvg_forSV,
-                                         rep(Sites,  times=length(ctsVars)),
-                                         rep(ctsVars, each=length(Sites))
-                                        ) )
+                              rep(Sites,  times=length(ctsVars)),
+                              rep(ctsVars, each=length(Sites))
+                              ) )
   rownames(PeerAvgs_bySite) <- NULL
   PeerAvgs_bySite <- data.frame(PeerAvgs_bySite)
   colnames(PeerAvgs_bySite) <- c("Site", "ctsVar","Mean")
@@ -161,9 +178,9 @@
   PropData <- SchProp_byAny # Change proportional dataset
   Status <- levels(fAnyYss)
   PeerAvgs_byAny <- t(mapply(PeerAvg_forSV,
-                                         rep(Status,  length(ctsVars)),
-                                         rep(ctsVars, each=length(Status))
-                                        ) )
+                             rep(Status,  length(ctsVars)),
+                             rep(ctsVars, each=length(Status))
+                             ) )
   rownames(PeerAvgs_byAny) <- NULL
   PeerAvgs_byAny <- data.frame(PeerAvgs_byAny)
   PeerAvgs_byAny$X3 <- as.numeric(levels(PeerAvgs_byAny$X3)[PeerAvgs_byAny$X3])
@@ -180,10 +197,10 @@
   ### SAVE RESULTS
   #---------------
   
-if (useScrambledData==1) { 
-  save(ctsMeans,    file = paste0(dataPath,"ctsMeans","_DEMO.Rda"))
-} else {  
-  save(ctsMeans,    file = paste0(dataPath,"ctsMeans.Rda"))
-  save(myData, file = paste0(dataPath, "subset_CpsYss_PP13.Rda"))
-}
+  if (useScrambledData==1) { 
+    save(ctsMeans,    file = paste0(dataPath,"ctsMeans","_DEMO.Rda"))
+  } else {  
+    save(ctsMeans,    file = paste0(dataPath,"ctsMeans.Rda"))
+    save(myData, file = paste0(dataPath, "subset_CpsYss_PP13.Rda"))
+  }
 

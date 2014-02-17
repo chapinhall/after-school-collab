@@ -1,13 +1,13 @@
-#---------------------------------------------#
-#---------------------------------------------#
-# MASTER FILE FOR DATA ANALYSIS AND REPORTING # 
-# Preliminary Analysis with ggplot2           #
-#                                             #
-# Authors: Nick Mader, Ian Matthew Morey,	    #
-#			and Emily Wiegand		                    #  
-#---------------------------------------------#
-#---------------------------------------------#
+#------------------------------------------------#
+#------------------------------------------------#
+# MASTER FILE FOR GENERATING DATA VISUALIZATIONS # 
+#                                                #
+# Authors: Nick Mader, Ian Matthew Morey,	       #
+#			and Emily Wiegand		                       #  
+#------------------------------------------------#
+#------------------------------------------------#
 
+## NOTE -- THIS WAS FORKED FROM THE "anayze-and-report.r" file
 
 ## Set up workspace and designate/update file locations
 
@@ -69,12 +69,133 @@
   
   org <- "YMCA"
   sites <- c("All",levels(fYssSite))
-  toGraph <- c("GradeLvl", "RaceEth", "Lunch", "TestPlMath", "TestPlRead","MathME_by_Gr","ReadME_by_Gr", "MathTestSs_by_Gr", "ReadTestSs_by_Gr", "MathGain", "ReadGain", "PctAtt", "SchAtt_by_ElemGr", "SchAtt_by_HsGr")
+  varsToGraph <- c("GradeLvl", "RaceEth", "Lunch", "TestPlMath", "TestPlRead","MathME_by_Gr","ReadME_by_Gr", "MathTestSs_by_Gr", "ReadTestSs_by_Gr", "MathGain", "ReadGain", "PctAtt", "SchAtt_by_ElemGr", "SchAtt_by_HsGr")
 
 # Write a function to define the dataset (since the data needed depends on the site and variable)
   # NSM: for more modular code, and to save computational time here, we should move calculations to the create_summary_stats.r code
   
   # NSM: our setup for ctsMeans has rows for Site/Grade (and soon year) combinations, and columns for all variables that are summarized
+  
+  # The analyze-and-report.r code created new PlotData here which created tables with rows by site, and columns by variable. This was sometimes sourced from the "ctsMeans" file, and sometimes
+  # calculated freshly, which is better be done in the create_summary_stats.R file 
+  
+  
+  ## Canonical graphs are:
+  # 1. Side-by-side historical histogram based on categorical variable -- e.g. grades served, races, served, tested proficiency categories
+  
+         This is achieved the same as Graph 3, where data is prepared properly
+  
+  
+  # 2. Comparison on a single (continuous) measure -- e.g. % free/reduced priced lunch
+  #      * Non-org, org, and possibly school-based peers -- currently vertical bars, with value labels
+  #      * Sites versus site (which shows district-level average as an overlaid line) -- currently horizontal bars, where axis labels are site name with sample size
+  #           -Want this in both 
+  
+        This is achieved the same as Graph 3, but where aesx is the same as the fill
+  
+  
+  # 3. Comparison on a single (continuous measure, calculated/presented by category -- e.g. test scale scores or school attendance by grade)
+      png(file = myGraphOut %&% "CpsVsOrg_MathME_by_Gr_AnyYss.png", res = myRes, width = myWidth, height = myHeight)
+        MEByGr_math <- ggplot(data=MEbyGr_non0, aes(x=Grade, y=mathpl_ME, fill=Site)) + 
+          geom_bar(stat="identity", position="dodge", width=0.7) + 
+          #geom_text(data=MEbyGr_non0, aes(x=Grade, y=mathpl_ME, label=mLabel, vjust=-1), position = position_dodge(width=0.7)) +
+          ggtitle("% Meets/Exceeds Standard\nfor Math Proficiency") + 
+          xlab("Grade") + ylab("% Meets/Exceeds") +
+          scale_y_continuous(labels = percent) + 
+          scale_fill_manual(values=useFill) +  
+          guides(fill=guide_legend(title=NULL)) +
+          theme(legend.position="bottom", axis.text=element_text(size = 7))
+        print(MEByGr_math)
+      dev.off()
+  
+      **** Need add smart coloration according to the organization for which the numbers apply. Should be able to match the organization or site (since sites should be classified by organization) to a color
+      **** Need to add a data prep step to get the order of presentation right. Should generally be: non, org-peers, org, site-peers, site. Within a given level (e.g. among orgs, or among sites) we may
+            wish to order by either alphabet or by value ... need to do this in the create_summary_stats.R code
+            ...
+      **** Would it be helpful to establish default x and y titles for different graphs?
+      **** To handle certain grade-specific variables like ISAT averages, Attendance by Elem grade, or attendance by HS grades, we could handle that in the create_summary_stats.R code where a variable is
+        defined for a subset of grades, is NA fo other grades, and where we drop NAs coming into the graphing code
+      **** To handle regressions, we could add an option regarding color scale, which would just create just a ramping color scale, as well as an option to add standard errors
+  
+  
+  
+  useFillCat <- c(myfill5, "#885533")
+    useFill <- c(myfill5, "#885533", "#BB2800")
+  
+  # set-aside arguments: site, outFile = paste0("g:/YSS_Graph_Testing/",site,"/CpsVsOrg_", graphVal, "_AnyYss.png")
+  
+  makePlot <- function(data, grOrgs, grLvls, grGrades, grVars, showPeers = TRUE, aesx, aesy, aesfill, plotTitle, xlab, ylab, extra, outFile){
+    
+    d <- data[(data$Org    %in% grOrgs) &
+              (data$sumLvl %in% grLvls) &
+              (data$Grade  %in% grGrades), c("Org", "Site", "Prog", "Year", grVars)]
+    if (showPeers == FALSE) d <- d[!grepl("Peer", d$Site), ] # XXX We may want to generalize this beyond just looking in the Site field for peers, e.g. include  "& !grepl("Peer", d$Prog)"
+       
+    myPlot <- ggplot(data=d, aes_string(x=aesx, y=aesy, fill=aesfill)) +
+      geom_bar(stat="identity", position="dodge", width=0.7) +
+      ggtitle(plotTitle) + xlab(xlab) + ylab(ylab) +
+      scale_y_continuous(labels = percent) +
+      theme(legend.position = "bottom") +
+      scale_fill_manual(values = useFill) +
+      guides(fill = guide_legend(title = NULL)) + extra
+    ggsave(filename = outFile, plot = myPlot, dpi = myRes, width = myWidth, height = myHeight)
+    #return(Plot) ... NSM: is this necessary?
+     
+  }
+  
+  
+  # 4. Comparison on multiple, thematically-linked measures -- e.g. neighborhood characteristics. This is sort of an extension of the comparison on a single (continuous) measure
+  
+    This is achieved the same as Graph 3, but where the aesx is its own construction. Just need to do special data prep ahead of time.
+  
+  
+  # 5. Comparison of a single measure across sites (or programs across sites)
+    
+    Same as Graph 3, but with no fill since we do not want to compare within the x. Just have x and y. However, the x is a long list of sites, probably affiliated with a given organization. (Or we may compare
+      sites across organizations if doing benchmarking activities. )
+  
+  # 6. Regression analysis, comparing specification -- e.g. raw vs. gain vs. lagged reg vs. full
+  
+    For now, the default is to use the ascending color scale no matter what, and to apply standard errors no matter what. By spec or by site should differ only in data fed in and determination of order.
+  
+  # 7. Regression analysis, comparing sites
+
+  
+  
+  
+  ## Within calls to canonical graphs, the arguments should be pretty straightforward. ERW's calls using "_params" are pretty simple. Could be even more simplified if calls were grouped by canonical graph
+  
+  
+ 
+  
+  # 2. Comparison on a single (continuous) measure -- e.g. % free/reduced priced lunch
+  #      * Non-org, org, and possibly school-based peers -- currently vertical bars, with value labels
+  
+    myGraphOut <- paste0("g:/YSS_Graph_Testing",site,"/")
+        Plot <- ggplot(data=data, aes_string(x=aesx, y=aesy, fill=aesfill)) +
+        geom_bar(stat="identity", position="dodge", width=0.7) +
+        ggtitle(plotTitle) + xlab(xlab) + ylab(ylab) +
+        scale_y_continuous(labels = percent) +
+        theme(legend.position = "bottom") +
+        scale_fill_manual(values = useFill) +
+        guides(fill = guide_legend(title = NULL)) + extra
+      print(Plot)
+  
+  # 3. Comparison on a single (continuous measure, calculated/presented by category -- e.g. test scale scores or school attendance by grade)
+  
+  
+  
+  # 4. Comparison on multiple, thematically-linked measures -- e.g. neighborhood characteristics. This is sort of an extension of the comparison on a single (continuous) measure
+  # 5. Comparison of a single measure across sites (or programs across sites)
+  # 6. Regression analysis, comparing specification -- e.g. raw vs. gain vs. lagged reg vs. full
+  # 7. Regression analysis, comparing sites
+  
+  
+  
+  
+  ############################################################################################################
+  
+  
   
   getPlotData <- function(graphVal, site){
       if (graphVal=="RaceEth")    {PlotData <- as.data.frame(prop.table(table(fAnyYss, fRace),1))}
@@ -111,7 +232,7 @@
 # Parameter order:  c(aesx, aesy, aesfill           # AESTHETICS
                     #  plotTitle,xlabel,ylabel,      # TITLES  
                     #  extra)                        # OTHER PARAMETERS
-  # NSM: This could be done as a list, so that all elements are named (and can be called by that name rather than by index)
+  
   GradeLvl_params <-      c(aesx = "fGradeLvl", aesy = "Freq", aesfill = "fAnyYss", 
                             plotTitle = "Distribution of Grade Levels", xlabel = "Grade", ylabel = "% in Each Grade",
                             extra = "")
@@ -156,22 +277,21 @@
                                plotTitle = "School Attendance by Grade",xlabel = "Grade", ylabel = "% Days Attending School",
                                extra = "scale_y_continuous(labels = percent, breaks=seq(0.5,1.0,0.1), limits=c(0.5, 1.0), oob = squish) + theme(legend.position='bottom')") # + geom_text(data=AttByGr[AttByGr$Grade %in% 1:8,], aes(x=Grade, y=Pct_Attend, label=mLabel, vjust=-1, hjust=HAdj, size=7))
   
-
   
-  DemoPlots <- function(site,graphVal,data,aesx,aesy,aesfill,plotTitle,xlab,ylab,extra){
+  DemoPlots <- function(site, graphVal, data, aesx, aesy, aesfill, plotTitle, xlab, ylab, extra){
     useFillCat <- c(myfill5, "#885533")
     useFill <- c(myfill5, "#885533", "#BB2800")
 #    myGraphOut <- paste0(myOutDir,site,"/")
     myGraphOut <- paste0("g:/YSS_Graph_Testing",site,"/")
       Plot <- ggplot(data=data, aes_string(x=aesx, y=aesy, fill=aesfill)) +
-      geom_bar(stat="identity", position="dodge",width=0.7) +
+      geom_bar(stat="identity", position="dodge", width=0.7) +
       ggtitle(plotTitle) + xlab(xlab) + ylab(ylab) +
       scale_y_continuous(labels = percent) +
       theme(legend.position = "bottom") +
       scale_fill_manual(values = useFill) +
-      guides(fill = guide_legend(title=NULL)) + extra
+      guides(fill = guide_legend(title = NULL)) + extra
     print(Plot)
-    ggsave(filename = paste0(myGraphOut,"CpsVsOrg_",graphVal,"_AnyYss.png"), dpi = myRes, width = myWidth, height = myHeight)
+    ggsave(filename = paste0(myGraphOut, "CpsVsOrg_", graphVal, "_AnyYss.png"), dpi = myRes, width = myWidth, height = myHeight)
     return(Plot)
   }
   
@@ -181,7 +301,7 @@
     dir.create(file.path("g:/YSS_Graph_Testing",site,fsep=""),showWarnings = F)
     params <- eval(parse(text = paste0(graphVal,"_params")))
     PlotData <- getPlotData(graphVal,site)
-    DemoPlots(site,graphVal,PlotData,params["aesx"],params["aesy"],params["aesfill"],params["plotTitle"],params["xlabel"],params["ylabel"],eval(parse(text = params["extra"])))
+    DemoPlots(site, graphVal, PlotData, params["aesx"], params["aesy"], params["aesfill"], params["plotTitle"], params["xlabel"], params["ylabel"], eval(parse(text = params["extra"])))
   }
   
   
@@ -203,7 +323,7 @@
   
   # Ultimately, loop through varlist and site list like so:
   
-  mapply(BySite, rep(sites,  each=length(toGraph)), rep(toGraph, times=length(sites)))
+  mapply(BySite, rep(sites,  each=length(varsToGraph)), rep(varsToGraph, times=length(sites)))
   
 
     
