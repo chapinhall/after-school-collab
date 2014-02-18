@@ -112,7 +112,7 @@
       **** Need to add a data prep step to get the order of presentation right. Should generally be: non, org-peers, org, site-peers, site. Within a given level (e.g. among orgs, or among sites) we may
             wish to order by either alphabet or by value ... need to do this in the create_summary_stats.R code
             ...
-      **** Would it be helpful to establish default x and y titles for different graphs?
+      **** Would it be helpful to establish default x and y titles for variables?
       **** To handle certain grade-specific variables like ISAT averages, Attendance by Elem grade, or attendance by HS grades, we could handle that in the create_summary_stats.R code where a variable is
         defined for a subset of grades, is NA fo other grades, and where we drop NAs coming into the graphing code
       **** To handle regressions, we could add an option regarding color scale, which would just create just a ramping color scale, as well as an option to add standard errors
@@ -122,14 +122,38 @@
   useFillCat <- c(myfill5, "#885533")
     useFill <- c(myfill5, "#885533", "#BB2800")
   
-  # set-aside arguments: site, outFile = paste0("g:/YSS_Graph_Testing/",site,"/CpsVsOrg_", graphVal, "_AnyYss.png")
+  ## Set default graph order.
+    # Order is: non-org, org-peers, org, site-peers, site. Within a given level (e.g. among orgs, or among sites)
+    Non  <- grepl("Non-",  ctsMean$Org)
+    Peer <- grepl("Peer", ctsMean$Org)
+    OrgLvl  <- grepl("All", ctsMean$Site)
+    SiteLvl <- !(OrgLvl)
   
-  makePlot <- function(data, grOrgs, grLvls, grGrades, grVars, showPeers = TRUE, aesx, aesy, aesfill, plotTitle, xlab, ylab, extra, outFile){
+    ctsMean$orgGraphOrder[Non           & OrgLvl]  <- 1
+    ctsMean$orgGraphOrder[Peer          & OrgLvl]  <- 2
+    ctsMean$orgGraphOrder[!(Non | Peer) & OrgLvl]  <- 3
+    ctsMean$orgGraphOrder[Non           & SiteLvl] <- 4 # This is the "None of the Above" category
+    ctsMean$orgGraphOrder[Peer          & SiteLvl] <- 5
+    ctsMean$orgGraphOrder[!(Non | Peer) & SiteLvl] <- 6
+  
+  
+  # set-aside arguments: site, outFile = paste0("g:/YSS_Graph_Testing/",site,"/CpsVsOrg_", graphVal, "_AnyYss.png")
+  # Note: xOrderVar will by default create an order based on organization levels and comparisons. Other choices may be to order by the y values, or alphabetically
+  
+  makePlot <- function(data, grOrgs, grLvls, grGrades, grVars, showPeers = TRUE, xOrderVar, aesx, aesy, aesfill, plotTitle, xlab, ylab, extra, outFile){
     
     d <- data[(data$Org    %in% grOrgs) &
               (data$sumLvl %in% grLvls) &
-              (data$Grade  %in% grGrades), c("Org", "Site", "Prog", "Year", grVars)]
+              (data$Grade  %in% grGrades), c("Org", "Site", "Year", grVars)] # "Prog", 
     if (showPeers == FALSE) d <- d[!grepl("Peer", d$Site), ] # XXX We may want to generalize this beyond just looking in the Site field for peers, e.g. include  "& !grepl("Peer", d$Prog)"
+    
+    # Set the order for the x-variables to be displayed
+    if (xOrderVar != "") {
+      d[, aesx] <- factor(d[, aesx], levels = d[order(xOrderVar), aesx])
+    }
+    
+    # Set colors for each x (or fill? ) ... XXX Look into how colors are declared in different graph types
+    
        
     myPlot <- ggplot(data=d, aes_string(x=aesx, y=aesy, fill=aesfill)) +
       geom_bar(stat="identity", position="dodge", width=0.7) +
