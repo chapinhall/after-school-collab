@@ -79,6 +79,29 @@
   # The analyze-and-report.r code created new PlotData here which created tables with rows by site, and columns by variable. This was sometimes sourced from the "ctsMeans" file, and sometimes
   # calculated freshly, which is better be done in the create_summary_stats.R file 
   
+
+  
+  
+  ## ERW: What is needed is an ability to specify site/org/year combos and have the data set accordingly restricted
+  
+    # If you specify the org or site desired and restrict on those grounds, you can move much of the data manipulation into the ggplot code!
+    # Preparing dataset can be restricted to limiting obs
+    # Reduces need to completely recalculate data each time
+  
+    ggplot(data=ctsMeans, aes(x=Grade)) + 
+      geom_bar(aes(y=(..count..)/sum(..count..))) + 
+      scale_y_continuous(labels = percent_format()) 
+  # replace prop.table manipulation: need to designate percent is wanted, changes aesy in geom_bar and labels in scale y
+  # still need to add labels, figure out how to reset site
+  
+  # two types of graphs - those with percentage calculations like this, and those that are reporting straight averages?
+    
+  
+  
+  
+  
+  
+  
   
   ## Canonical graphs are:
   # 1. Side-by-side historical histogram based on categorical variable -- e.g. grades served, races, served, tested proficiency categories
@@ -108,10 +131,6 @@
         print(MEByGr_math)
       dev.off()
   
-      **** Need add smart coloration according to the organization for which the numbers apply. Should be able to match the organization or site (since sites should be classified by organization) to a color
-      **** Need to add a data prep step to get the order of presentation right. Should generally be: non, org-peers, org, site-peers, site. Within a given level (e.g. among orgs, or among sites) we may
-            wish to order by either alphabet or by value ... need to do this in the create_summary_stats.R code
-            ...
       **** Would it be helpful to establish default x and y titles for variables?
       **** To handle certain grade-specific variables like ISAT averages, Attendance by Elem grade, or attendance by HS grades, we could handle that in the create_summary_stats.R code where a variable is
         defined for a subset of grades, is NA fo other grades, and where we drop NAs coming into the graphing code
@@ -140,17 +159,16 @@
   # set-aside arguments: site, outFile = paste0("g:/YSS_Graph_Testing/",site,"/CpsVsOrg_", graphVal, "_AnyYss.png")
   # Note: xOrderVar will by default create an order based on organization levels and comparisons. Other choices may be to order by the y values, or alphabetically
   
-  makePlot <- function(data, grOrgs, grLvls, grGrades, grVars, showPeers = TRUE, xOrderVar, aesx, aesy, aesfill, plotTitle, xlab, ylab, extra, outFile){
+  makePlot <- function(data, grOrgs, grLvls, grGrades, grVars, showPeers = TRUE, aesx, xOrderVar = levels(aesx), aesy = grVars, aesfill, plotTitle, xlab, ylab, extra, outFile){
     
     d <- data[(data$Org    %in% grOrgs) &
               (data$sumLvl %in% grLvls) &
               (data$Grade  %in% grGrades), c("Org", "Site", "Year", grVars)] # "Prog", 
     if (showPeers == FALSE) d <- d[!grepl("Peer", d$Site), ] # XXX We may want to generalize this beyond just looking in the Site field for peers, e.g. include  "& !grepl("Peer", d$Prog)"
     
-    # Set the order for the x-variables to be displayed
-    if (xOrderVar != "") {
-      d[, aesx] <- factor(d[, aesx], levels = d[order(xOrderVar), aesx])
-    }
+    # Set the order for the x-variables to be displayed (releveling aesx)
+    d[, aesx] <- factor(d[, aesx], levels = d[order(xOrderVar), aesx])
+
     
     # Set colors for each x (or fill? ) ... XXX Look into how colors are declared in different graph types
     
