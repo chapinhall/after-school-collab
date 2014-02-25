@@ -42,8 +42,14 @@
       myData <- CpsYss_PP13[, keepVars]
 	  myGraphOut <- paste0(myDir,"/output/")
       rm(CpsYss_PP13)} 
-  
 
+## XXX Short term edits to make data set match eventual result (IMM is working on data prep)
+  myData$Org[myData$fAnyYss=='YMCA'] <- "YMCA"
+  myData$Org[is.na(myData$Org)] <- "None"
+  myData$Site[myData$fAnyYss=='YMCA'] <- as.character(myData$fYssSite[myData$fAnyYss=='YMCA'])
+  attach(myData)  
+  
+  
 ## Select variables to summarize
 
   cNames <- colnames(myData)
@@ -54,65 +60,77 @@
   catVars <- c("mathpl", "readpl", "fGradeLvl")
   
   # Create dummy variables of catVar vlaues to be treated as continuous vars
-  #catVars <- "mathpl"
   for (var in catVars) {
     cVar <- as.character(get(var))
     for(val in unique(cVar)){
       if (!is.na(val)) {
         newVar <- paste(var, val, sep="_")
-        myData[, newVar] <- ifelse(cVar==val, 1, 0))
+        myData[, newVar] <- ifelse(cVar==val, 1, 0)
         ctsVars <- c(ctsVars, newVar)
       }
     }
   } # XXX There's likely a more elegant way to do this. Note that model.matrix(~0+var) drops observations with NAs, returning a vector of shorter length (which, at this stage, we don't want)
 
-## XXX Will need to farm this into data prep code
-  myData$bYmca     <- as.numeric(myData$fAnyYss=="YMCA")
-  myData$fYmcaSite <- myData$fYssSite
-  attach(myData)  
 
   
-## Calculate summary statistics for continuous measures
-  myOrg <- "Ymca" # Am setting this up to eventually be an lapply across organization names
-  bOrg  <- get(paste0("b", myOrg))
-  fOrg  <- factor(bOrg, levels = c(0, 1), labels=(c(paste0("Non-", myOrg), myOrg)))
-  fSite <- get(paste0("f", myOrg, "Site"))
-  # XXX See if there's a way to make this set of calculations faster and/or more elegant
-  ctsMean_byOrg     <- aggregate(myData[, ctsVars], list(fOrg                  ), mean, na.rm = T)
-  ctsMean_bySite    <- aggregate(myData[, ctsVars], list(fOrg, fSite           ), mean, na.rm = T)
-  ctsMean_byOrgGr   <- aggregate(myData[, ctsVars], list(fOrg,        fGradeLvl), mean, na.rm = T)
-  ctsMean_bySiteGr  <- aggregate(myData[, ctsVars], list(fOrg, fSite, fGradeLvl), mean, na.rm = T)
+## Before calculating summary statistics, create a reduced dataset that includes only the necessary variables
   
-  colnames(ctsMean_byOrg)[1]    <- "Org"; ctsMean_byOrg$Site <- paste("All", myOrg);   ctsMean_byOrg$Grade  <- "All";
-  colnames(ctsMean_bySite)[1]   <- "Org"; colnames(ctsMean_bySite)[2] <- "Site";       ctsMean_bySite$Grade <- "All";
-  colnames(ctsMean_byOrgGr)[1]  <- "Org"; ctsMean_byOrgGr$Site <- paste("All", myOrg); colnames(ctsMean_byOrgGr)[2]  <- "Grade";
-  colnames(ctsMean_bySiteGr)[1] <- "Org"; colnames(ctsMean_bySiteGr)[2] <- "Site";     colnames(ctsMean_bySiteGr)[3] <- "Grade";
+  cNames <- colnames(myData)
+  calcVars <- c("sid", "Org", "Site", "fGradeLvl", "SchYear", "schlid","mathss", "readss", "mathgain", "readgain", "Pct_Attend",
+                grep("bRace",     cNames, value=T),
+                grep("bLunch",    cNames, value=T),
+                grep("Tract_",    cNames, value=T),
+                grep("fGradeLvl_", cNames, value=T),
+                grep("mathpl_",   cNames, value=T),
+                grep("readpl_",   cNames, value=T)) 
+  calcData <- myData[,calcVars]
+  detach(myData)
   
-  # Experimenting with data.table, which supposedly has performance advantages
-  #DT <- data.table(ctsMean)
-  #ctsMean_alt <- DT[,mean("mathss"), by = fOrg]
-## Combine summary statistics across different measures into one data frame
+  # Also, remove obs that didn't match to CPS and are NA for basically all the variables we will use for calculations
+  calcData <- calcData[!is.na(calcData$schlid),]
   
-  ctsMean <- rbind(ctsMean_byOrg, ctsMean_byOrgGr, ctsMean_bySite, ctsMean_bySiteGr)
-  ctsMean$Org  <- as.character(ctsMean$Org)
-  ctsMean$Site <- as.character(ctsMean$Site)  
-  ctsMean$Year <- "2012-13"
-  ctsMean$SchYr <- "2013"
+  ### ERW: We need to look into who these IDs are and how they got mixed into the dataset.  They should theoretically be removed during
+    ## data preparation unless there is a reason to keep them in.  I'm comfortable to drop now since NAs get dropped from all calcs.  But 
+    ## some might have a few values?  How does that happen?  Fundamental question: are these people in the CPS master file?
   
-    #statDFs <- list(ctsMean_bySiteGr, ctsMean_byAny, ctsMean_byAnyGr, ctsMean_bySite) # ctsMean_bySch, ctsMean_bySchGr
-    #siteAsChar <- function(df){df$Site <- as.character(df$Site); return(df)}
-    #statDFs2 <- lapply(statDFs, siteAsChar)
-    #ctsMeans <- do.call("rbind", statDFs2)
-
-#-------------------------------------------------------
-#-------------------------------------------------------
-## Calculate summary statistics for categorical measures
-#-------------------------------------------------------
-#-------------------------------------------------------
     
-###### NSM: this section has been abandoned in favor of creating binary variables based off of the categorical variables, so that they can be treated as equivalent to continuous measures
+## Calculate summary statistics
+  attach(calcData)
+  
+  meanVars <- c("mathss", "readss", "mathgain", "readgain", "Pct_Attend",
+                grep("bRace",     cNames, value=T),
+                grep("bLunch",    cNames, value=T),
+                grep("Tract_",    cNames, value=T),
+                grep("GradeLvl_", cNames, value=T),
+                grep("mathpl_",   cNames, value=T),
+                grep("readpl_",   cNames, value=T)) 
+  
+  ctsMean_byOrg     <- aggregate(calcData[, meanVars], list(Org                  ), mean, na.rm = T)
+  ctsMean_bySite    <- aggregate(calcData[, meanVars], list(Org, Site            ), mean, na.rm = T)
+  ctsMean_byOrgGr   <- aggregate(calcData[, meanVars], list(Org,        fGradeLvl), mean, na.rm = T)
+  ctsMean_bySiteGr  <- aggregate(calcData[, meanVars], list(Org, Site,  fGradeLvl), mean, na.rm = T)
+    
+  colnames(ctsMean_byOrg)[1]    <- "Org"; ctsMean_byOrg$Site <-   "All";           ctsMean_byOrg$Grade  <- "All";
+  colnames(ctsMean_bySite)[1]   <- "Org"; colnames(ctsMean_bySite)[2] <- "Site";   ctsMean_bySite$Grade <- "All";
+  colnames(ctsMean_byOrgGr)[1]  <- "Org"; ctsMean_byOrgGr$Site <- "All";           colnames(ctsMean_byOrgGr)[2]  <- "Grade";
+  colnames(ctsMean_bySiteGr)[1] <- "Org"; colnames(ctsMean_bySiteGr)[2] <- "Site"; colnames(ctsMean_bySiteGr)[3] <- "Grade";
+  
+  
+  # ERW: will need to add school year as another unit of analysis
+  
+  # NSM: Experimenting with data.table, which supposedly has performance advantages
+      #DT <- data.table(ctsMean)
+      #ctsMean_alt <- DT[,mean("mathss"), by = fOrg]
 
   
+  ## Combine summary statistics across different measures into one data frame
+  
+  ctsMeans <- rbind(ctsMean_byOrg, ctsMean_byOrgGr, ctsMean_bySite, ctsMean_bySiteGr)
+  ctsMeans$Org  <- as.character(ctsMeans$Org)
+  ctsMeans$Site <- as.character(ctsMeans$Site)
+  ctsMeans$Year <- "2012-13" # Placeholder before more years are introduced
+  
+
 #----------------------------------------------------------------------------
 #----------------------------------------------------------------------------
 ## Calculate average characteristics for representative peers in same schools
@@ -128,17 +146,21 @@
   
   
  # Calculate school means overall and by grade
-  ctsMean_bySch     <- aggregate(myData[, ctsVars], list(schlid),              mean, na.rm = T)
-  ctsMean_bySchGr   <- aggregate(myData[, ctsVars], list(schlid, fGradeLvl),   mean, na.rm = T)
+  ctsMean_bySch     <- aggregate(calcData[, meanVars], list(schlid),              mean, na.rm = T)
+  ctsMean_bySchGr   <- aggregate(calcData[, meanVars], list(schlid, fGradeLvl),   mean, na.rm = T)
   colnames(ctsMean_bySch)[1]    <- "Site"; ctsMean_bySch$Grade  <- "All"; 
   colnames(ctsMean_bySchGr)[1]  <- "Site"; colnames(ctsMean_bySchGr)[2] <- "Grade"
   
  # Get school %s by population and treatment status
-  SchProp_bySite <- prop.table(table(schlid, fYssSite), 2) # Percent of students from each school at each site
-  SchProp_byAny  <- prop.table(table(schlid, fAnyYss), 2) # Percent of students from each school in treatment/control
-  PropData <- SchProp_bySite # First analysis will use site averages
+  SchProp_bySite <- prop.table(table(schlid, Site), 2) # Percent of students from each school at each site
+  #SchProp_byAny  <- prop.table(table(schlid, fAnyYss), 2) # Percent of students from each school in treatment/control
+    ## ERW: Stopping this statement for now, since I dropped fAnyYss.  Not sure the value of this calculation?
+    
+
   
- # Create function that combines "peer" averages by proportionately weighting school averages
+  # ERW stopping here for now and focusing on getting graphs working with the reduced data set. Not sure yet what this data should look like.
+  
+  # Create function that combines "peer" averages by proportionately weighting school averages
   popPeerAvg <- function(pop, var) {
     validRows <- !is.na(ctsMean_bySch[, var])
     schWgt <- prop.table(table(schlid[myPopn])) # Need a way to guarantee that we get 0 entries
@@ -219,6 +241,13 @@
     # Combine peer calculations with existing ctsMeans table
   
   ctsMeans <- rbind(ctsMeans,ctsMean_bySiteSchPeer,ctsMean_byAnySchPeer)
+  
+  
+  
+  
+  
+  
+  
   
   #---------------
   ### SAVE RESULTS

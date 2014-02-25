@@ -37,31 +37,79 @@
   #Using pixels: myWidth <- 2800
   #Using pixels: myHeight <- 2100
 
-## Load data
+## Load data - ERW: I don't think we need this kind of data anymore. 
+  # Will need to rework the scrambled indicators to pull the appropriate ctsMeans, of course.
 
-  if (useScrambledData==1) {
-    load(paste0(dataPath,"Scram.Rda"))
-    myData <- Scram
-    rm(Scram)
-    myOutDir <- paste0(myDir,"demos/") 
-    scramInd <- "_DEMO"
-  } else {
-    load(paste0(dataPath,"subset_CpsYss_PP13.Rda"))
-    myOutDir <- paste0(myDir,"output/")
-    scramInd <- ""
-  }
+#  if (useScrambledData==1) {
+#    load(paste0(dataPath,"Scram.Rda"))
+#    myData <- Scram
+#    rm(Scram)
+#    myOutDir <- paste0(myDir,"demos/") 
+#    scramInd <- "_DEMO"
+#  } else {
+#    load(paste0(dataPath,"subset_CpsYss_PP13.Rda"))
+#    myOutDir <- paste0(myDir,"output/")
+#    scramInd <- ""
+#  }
 
-  try(detach(myData), silent=T)
-  attach(myData)
+#  try(detach(myData), silent=T)
+#  attach(myData)
 
-  load(paste0(dataPath,"ctsMeans",scramInd,".Rda"))
-
+#  load(paste0(dataPath,"ctsMeans",scramInd,".Rda"))
+  load(paste0(dataPath,"ctsMeans.Rda"))
+  
 
 #---------------------------------------#
 #---------------------------------------#
 ### Graphs for Non-Org, Org, and Site ###
 #---------------------------------------#
 #---------------------------------------#
+
+  
+# For each graph, need to select org/site/grade/year combination
+# Then select aesx - one of those four, or variable name for dummy variables (like race)?
+# Should be able to create core graphics with just those two pieces of information.
+  
+  # Exploring ggplot2 statistics
+  
+  
+  # Grade distribution (categorical graph)
+  
+  ggplot(data=ctsMeans, aes(x=Grade, fill = Org)) +
+    stat_summary(fun.y = mean(fGradeLvl_PK + fGradeLvl_1 + fGradeLvl_2), geom="bar")
+  # This isn't working yet, but I think the final idea will be something like this.
+    geom_bar(stat = 'identity', position = 'dodge', width =0.7)
+  
+  ggplot(data=myData, aes(x=fGradeLvl, fill = fAnyYss)) + 
+    geom_bar(aes(y=(..count..)/sum(..count..)), position = 'dodge') + 
+    scale_y_continuous(labels = percent_format()) ## ERW: Need prop table and data reformatting after all.
+  
+  
+  # Free lunch (aesx is org, etc)
+  ggplot(data = myData, aes(x=fAnyYss, y=bLunch_FR, fill = fAnyYss)) +
+    stat_summary(fun.y = mean, geom='bar') + 
+    geom_text(label = y) +
+    scale_y_continuous(labels = percent_format())  ## ERW: This runs much more slowly than prop table.
+  # Creating ctsMeans for categorical variables using dummy variables.
+  
+  
+  
+  
+  
+  
+  
+  
+  
+  
+  
+  
+  
+  
+  
+  
+  
+  
+  
   
 #if (1==runDescGraphs) {
 
@@ -78,30 +126,6 @@
   
   # The analyze-and-report.r code created new PlotData here which created tables with rows by site, and columns by variable. This was sometimes sourced from the "ctsMeans" file, and sometimes
   # calculated freshly, which is better be done in the create_summary_stats.R file 
-  
-
-  
-  
-  ## ERW: What is needed is an ability to specify site/org/year combos and have the data set accordingly restricted
-  
-    # If you specify the org or site desired and restrict on those grounds, you can move much of the data manipulation into the ggplot code!
-    # Preparing dataset can be restricted to limiting obs
-    # Reduces need to completely recalculate data each time
-  
-    ggplot(data=ctsMeans, aes(x=Grade)) + 
-      geom_bar(aes(y=(..count..)/sum(..count..))) + 
-      scale_y_continuous(labels = percent_format()) 
-  # replace prop.table manipulation: need to designate percent is wanted, changes aesy in geom_bar and labels in scale y
-  # still need to add labels, figure out how to reset site
-  
-  # two types of graphs - those with percentage calculations like this, and those that are reporting straight averages?
-    
-  
-  
-  
-  
-  
-  
   
   ## Canonical graphs are:
   # 1. Side-by-side historical histogram based on categorical variable -- e.g. grades served, races, served, tested proficiency categories
