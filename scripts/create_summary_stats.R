@@ -129,6 +129,7 @@
   ctsMeans$Org  <- as.character(ctsMeans$Org)
   ctsMeans$Site <- as.character(ctsMeans$Site)
   ctsMeans$Year <- "2012-13" # Placeholder before more years are introduced
+  ctsMeans$Site[ctsMeans$Org=="None"] <- "None" # Need to distinguish these at the site level for plotting purposes (see gen_viz script)
   
 
 #----------------------------------------------------------------------------
