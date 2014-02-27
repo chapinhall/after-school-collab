@@ -65,43 +65,75 @@
 #---------------------------------------#
 #---------------------------------------#
 
+
+  # Exploring ggplot2 statistics: Can we eliminate reformatting the data for each graph, and still streamline graphing?
   
-# For each graph, need to select org/site/grade/year combination
-# Then select aesx - one of those four, or variable name for dummy variables (like race)?
-# Should be able to create core graphics with just those two pieces of information.
-  
-  # Exploring ggplot2 statistics
+## CATEGORICAL
   
   
-  # Grade distribution (categorical graph)
+  # Grade distribution (categorical graph - special case where x and y are same)
   
-  ggplot(data=ctsMeans, aes(x=Grade, fill = Org)) +
-    stat_summary(fun.y = mean(fGradeLvl_PK + fGradeLvl_1 + fGradeLvl_2), geom="bar")
-  # This isn't working yet, but I think the final idea will be something like this.
-    geom_bar(stat = 'identity', position = 'dodge', width =0.7)
+  restricted <- ctsMeans[ctsMeans$Grade=="All",] # percentages are always 100% in grade-specific rows!
   
-  ggplot(data=myData, aes(x=fGradeLvl, fill = fAnyYss)) + 
-    geom_bar(aes(y=(..count..)/sum(..count..)), position = 'dodge') + 
-    scale_y_continuous(labels = percent_format()) ## ERW: Need prop table and data reformatting after all.
+  # XXX Need to add x and y labels, plot title, and a sort order for the x axis.  Also scale_y_continuous(labels = percent_format()).
+  ggplot(data=restricted) +
+    stat_summary(aes(x="PK", y=fGradeLvl_PK, fill = Org),fun.y = mean, geom="bar", position = "dodge") +
+    stat_summary(aes(x="1", y=fGradeLvl_1, fill = Org),fun.y = mean, geom = "bar", position = "dodge") +
+    stat_summary(aes(x="2", y=fGradeLvl_2, fill = Org),fun.y = mean, geom = "bar", position = "dodge") +
+    stat_summary(aes(x="3", y=fGradeLvl_3, fill = Org),fun.y = mean, geom = "bar", position = "dodge") +
+    stat_summary(aes(x="4", y=fGradeLvl_4, fill = Org),fun.y = mean, geom = "bar", position = "dodge") +
+    stat_summary(aes(x="5", y=fGradeLvl_5, fill = Org),fun.y = mean, geom = "bar", position = "dodge") +
+    stat_summary(aes(x="6", y=fGradeLvl_6, fill = Org),fun.y = mean, geom = "bar", position = "dodge") +
+    stat_summary(aes(x="7", y=fGradeLvl_7, fill = Org),fun.y = mean, geom = "bar", position = "dodge") +
+    stat_summary(aes(x="8", y=fGradeLvl_8, fill = Org),fun.y = mean, geom = "bar", position = "dodge") +
+    stat_summary(aes(x="9", y=fGradeLvl_9, fill = Org),fun.y = mean, geom = "bar", position = "dodge") +
+    stat_summary(aes(x="10", y=fGradeLvl_10, fill = Org),fun.y = mean, geom = "bar", position = "dodge") +
+    stat_summary(aes(x="11", y=fGradeLvl_11, fill = Org),fun.y = mean, geom = "bar", position = "dodge") +
+    stat_summary(aes(x="12", y=fGradeLvl_12, fill = Org),fun.y = mean, geom = "bar", position = "dodge")
+    
+  # ERW: this looks slightly different than graph on file, which may just reflect data changes, but worth
+  # double checking numbers
+ 
+  # Race (categorical graph)
+  ggplot(data = ctsMeans) +
+    stat_summary(aes(x="White", y=bRace_W, fill = Org), fun.y = mean, geom = "bar", position = "dodge") +
+    stat_summary(aes(x="Black", y=bRace_B, fill = Org), fun.y = mean, geom = "bar", position = "dodge") +
+    stat_summary(aes(x="Hispanic", y=bRace_H, fill = Org), fun.y = mean, geom = "bar", position = "dodge") +
+    stat_summary(aes(x="Multiracial", y=bRace_M, fill = Org), fun.y = mean, geom = "bar", position = "dodge") +
+    stat_summary(aes(x="Other", y=bRace_O, fill = Org), fun.y = mean, geom = "bar", position = "dodge")
+
+  # ERW: Need Nick to check that I correctly interpreted these values (i.e M = "Multiracial") and that this is inclusive (leaving off "non-white" measure)
   
+
+  # Math and Reading Buckets (categorical graph)
+  ggplot(data = ctsMeans) +
+    stat_summary(aes(x="Warning", y = mathpl_W, fill = Org), fun.y = mean, geom = "bar", position = "dodge") +
+    stat_summary(aes(x="Below", y = mathpl_B, fill = Org), fun.y = mean, geom = "bar", position = "dodge") +
+    stat_summary(aes(x="Meets", y = mathpl_M, fill = Org), fun.y = mean, geom = "bar", position = "dodge") +
+    stat_summary(aes(x="Exceeds", y = mathpl_E, fill = Org), fun.y = mean, geom = "bar", position = "dodge")
+  # Reading is obviously the same
   
-  # Free lunch (aesx is org, etc)
-  ggplot(data = myData, aes(x=fAnyYss, y=bLunch_FR, fill = fAnyYss)) +
-    stat_summary(fun.y = mean, geom='bar') + 
-    geom_text(label = y) +
-    scale_y_continuous(labels = percent_format())  ## ERW: This runs much more slowly than prop table.
-  # Creating ctsMeans for categorical variables using dummy variables.
+
+## CONTINUOUS
   
+  # Free lunch
   
+  ggplot(data = ctsMeans, aes(x = Org, y = bLunch_FR, fill = Org)) +
+      stat_summary(fun.y = mean, geom = "bar", position = "dodge")
+  # This can be written as follows to more closely resemble categorical measures:
+  ggplot(data = ctsMeans) +
+      stat_summary(aes(x= Org, y = bLunch_FR, fill = Org), fun.y = mean, geom = "bar", position = "dodge")
   
+
   
-  
-  
-  
-  
-  
-  
-  
+## wHAT INPUTS DO WE NEED TO SET UP GRAPHS AUTOMATICALLY?
+  # 1. List of input variables.  If one, then continuous, if many (dummies), categorical, but we don't ever need to specify!
+  # 2. If continuous, variable names for aesx (we can have this default to varname, so you don't always need to designate?)
+  # 3. Scale of Y axis (can default to continuous and percent, since that will mostly be the case)
+  # 4. All labels and titles (enter these)
+  # 5. Unit of analysis - including data restrictions and fill.  Need to define these!
+
+
   
   
   
