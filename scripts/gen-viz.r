@@ -65,11 +65,15 @@
 #---------------------------------------#
 #---------------------------------------#
 
+#if (1==runDescGraphs) {
+  
+  
+  
 
-  # Exploring ggplot2 statistics: Can we eliminate reformatting the data for each graph, and still streamline graphing?
-  
-## CATEGORICAL
-  
+    
+  ## Canonical graphs are:
+  # 1. Side-by-side historical histogram based on categorical variable -- e.g. grades served, races, served, tested proficiency categories
+    
   
   # Grade distribution (categorical graph - special case where x and y are same)
   
@@ -114,7 +118,12 @@
   # Reading is obviously the same
   
 
-## CONTINUOUS
+
+  # 2. Comparison on a single (continuous) measure -- e.g. % free/reduced priced lunch
+  #      * Non-org, org, and possibly school-based peers -- currently vertical bars, with value labels
+  #      * Sites versus site (which shows district-level average as an overlaid line) -- currently horizontal bars, where axis labels are site name with sample size
+  #           -Want this in both 
+  
   
   # Free lunch
   
@@ -133,83 +142,91 @@
   # 4. All labels and titles (enter these)
   # 5. Unit of analysis - including data restrictions and fill.  Need to define these!
 
+  
+  
 
+# Need a function to restrict data as need by org, site, grade (could add year to this in a future version)
   
+  restrictData <- function (org, site = "All", grades = c("PK",1:12)) { 
+    output <- ctsMeans[(ctsMeans$Org==org & ctsMeans$Site==site & ctsMeans$Grade %in% grades),]
+    return(output)
+  }
   
-  
-  
-  
-  
-  
-  
-  
-#if (1==runDescGraphs) {
+  orgs <- levels(as.factor(ctsMeans$Org))
+  sites <- c("All",levels(as.factor(ctsMeans$Site))
+  # ERW School based peers are not currently in data set, and depending on how they are incorporated it might change what this looks like.
 
-# Define levels to iterate through - organization, site, and variable
+  # Need to iterate through orgs and sites, restricting data and creating graphs  
   
-  org <- "YMCA"
-  sites <- c("All",levels(fYssSite))
-  varsToGraph <- c("GradeLvl", "RaceEth", "Lunch", "TestPlMath", "TestPlRead","MathME_by_Gr","ReadME_by_Gr", "MathTestSs_by_Gr", "ReadTestSs_by_Gr", "MathGain", "ReadGain", "PctAtt", "SchAtt_by_ElemGr", "SchAtt_by_HsGr")
+  
+  # A few funtions to help the plotting function
+  
+  ## First, creating a data frame of variable names and their labels - I think I can cut this, but committing for posterity first!
+  varpairs <- function(varlist, varlabellist) {
+   pairs <- data.frame(
+              var=character(length=length(varlist)), 
+              lab=character(length=length(varlist)),
+              stringsAsFactors=FALSE)
+   for (i in 1:length(varlist)) {
+      pairs$var[i] <- varlist[i]
+      pairs$lab[i] <- varlabellist[i]
+    }
+     return(pairs)
+  }
 
-# Write a function to define the dataset (since the data needed depends on the site and variable)
-  # NSM: for more modular code, and to save computational time here, we should move calculations to the create_summary_stats.r code
+  ## Create function to generate the text of the different stat_summary lines
+  create_stat_sum <- function(var, label, fill) {
+    string <- paste0("stat_summary(aes(x=",label,", y=",var,", fill=",fill,"), fun.y = mean, geom = 'bar', position = 'dodge') + ")
+    return(string)
+  }
   
-  # NSM: our setup for ctsMeans has rows for Site/Grade (and soon year) combinations, and columns for all variables that are summarized
+  ## Main plotting function
+  makePlot <- function(VarList, VarLabelList = VarList, orgname, site = "All", grades = c("PK",1:12), fill = Org){
+    # Note that all inputs need to be stored as text strings
+    #First, restrict data
+      data <- ctsMeans[(ctsMeans$Org==org & ctsMeans$Site==site & ctsMeans$Grade %in% grades),]
+    #Second, generate stat_summaries - so that you have the right number of lines
+      pairs <- varpairs(VarList, VarLabelList) 
+      stats <- mapply(create_stat_sum, VarList, VarLabelList, fill)  
+      stats <- paste(stats, collapse='')
+      
+    
+  }
   
-  # The analyze-and-report.r code created new PlotData here which created tables with rows by site, and columns by variable. This was sometimes sourced from the "ctsMeans" file, and sometimes
-  # calculated freshly, which is better be done in the create_summary_stats.R file 
+    
+makePlot <- function(data, grOrgs, grLvls, grGrades, grVars, showPeers = TRUE, aesx, xOrderVar = levels(aesx), aesy = grVars, aesfill, plotTitle, xlab, ylab, extra, outFile){  
   
-  ## Canonical graphs are:
-  # 1. Side-by-side historical histogram based on categorical variable -- e.g. grades served, races, served, tested proficiency categories
+  myPlot <- ggplot(data=d, aes_string(x=aesx, y=aesy, fill=aesfill)) +
+    geom_bar(stat="identity", position="dodge", width=0.7) +
+    ggtitle(plotTitle) + xlab(xlab) + ylab(ylab) +
+    scale_y_continuous(labels = percent) +
+    theme(legend.position = "bottom") +
+    scale_fill_manual(values = useFill) +
+    guides(fill = guide_legend(title = NULL)) + extra
+  ggsave(filename = outFile, plot = myPlot, dpi = myRes, width = myWidth, height = myHeight)
+  #return(Plot) ... NSM: is this necessary? ERW: Yes.  Otherwise, ggplot generates nothing if within a function.
   
-         This is achieved the same as Graph 3, where data is prepared properly
-  
-  
-  # 2. Comparison on a single (continuous) measure -- e.g. % free/reduced priced lunch
-  #      * Non-org, org, and possibly school-based peers -- currently vertical bars, with value labels
-  #      * Sites versus site (which shows district-level average as an overlaid line) -- currently horizontal bars, where axis labels are site name with sample size
-  #           -Want this in both 
-  
-        This is achieved the same as Graph 3, but where aesx is the same as the fill
-  
-  
-  # 3. Comparison on a single (continuous measure, calculated/presented by category -- e.g. test scale scores or school attendance by grade)
-      png(file = myGraphOut %&% "CpsVsOrg_MathME_by_Gr_AnyYss.png", res = myRes, width = myWidth, height = myHeight)
-        MEByGr_math <- ggplot(data=MEbyGr_non0, aes(x=Grade, y=mathpl_ME, fill=Site)) + 
-          geom_bar(stat="identity", position="dodge", width=0.7) + 
-          #geom_text(data=MEbyGr_non0, aes(x=Grade, y=mathpl_ME, label=mLabel, vjust=-1), position = position_dodge(width=0.7)) +
-          ggtitle("% Meets/Exceeds Standard\nfor Math Proficiency") + 
-          xlab("Grade") + ylab("% Meets/Exceeds") +
-          scale_y_continuous(labels = percent) + 
-          scale_fill_manual(values=useFill) +  
-          guides(fill=guide_legend(title=NULL)) +
-          theme(legend.position="bottom", axis.text=element_text(size = 7))
-        print(MEByGr_math)
-      dev.off()
-  
-      **** Would it be helpful to establish default x and y titles for variables?
-      **** To handle certain grade-specific variables like ISAT averages, Attendance by Elem grade, or attendance by HS grades, we could handle that in the create_summary_stats.R code where a variable is
-        defined for a subset of grades, is NA fo other grades, and where we drop NAs coming into the graphing code
-      **** To handle regressions, we could add an option regarding color scale, which would just create just a ramping color scale, as well as an option to add standard errors
+  }
   
   
   
-  useFillCat <- c(myfill5, "#885533")
-    useFill <- c(myfill5, "#885533", "#BB2800")
   
-  ## Set default graph order.
-    # Order is: non-org, org-peers, org, site-peers, site. Within a given level (e.g. among orgs, or among sites)
-    Non  <- grepl("Non-",  ctsMean$Org)
-    Peer <- grepl("Peer", ctsMean$Org)
-    OrgLvl  <- grepl("All", ctsMean$Site)
-    SiteLvl <- !(OrgLvl)
   
-    ctsMean$orgGraphOrder[Non           & OrgLvl]  <- 1
-    ctsMean$orgGraphOrder[Peer          & OrgLvl]  <- 2
-    ctsMean$orgGraphOrder[!(Non | Peer) & OrgLvl]  <- 3
-    ctsMean$orgGraphOrder[Non           & SiteLvl] <- 4 # This is the "None of the Above" category
-    ctsMean$orgGraphOrder[Peer          & SiteLvl] <- 5
-    ctsMean$orgGraphOrder[!(Non | Peer) & SiteLvl] <- 6
+  
+  
+  ## Set default graph order.  ----- ERW: I think this needs to be reworked as we finalize data set structure.
+  # Order is: non-org, org-peers, org, site-peers, site. Within a given level (e.g. among orgs, or among sites)
+  Non  <- grepl("Non-",  ctsMean$Org)
+  Peer <- grepl("Peer", ctsMean$Org)
+  OrgLvl  <- grepl("All", ctsMean$Site)
+  SiteLvl <- !(OrgLvl)
+  
+  ctsMean$orgGraphOrder[Non           & OrgLvl]  <- 1
+  ctsMean$orgGraphOrder[Peer          & OrgLvl]  <- 2
+  ctsMean$orgGraphOrder[!(Non | Peer) & OrgLvl]  <- 3
+  ctsMean$orgGraphOrder[Non           & SiteLvl] <- 4 # This is the "None of the Above" category
+  ctsMean$orgGraphOrder[Peer          & SiteLvl] <- 5
+  ctsMean$orgGraphOrder[!(Non | Peer) & SiteLvl] <- 6
   
   
   # set-aside arguments: site, outFile = paste0("g:/YSS_Graph_Testing/",site,"/CpsVsOrg_", graphVal, "_AnyYss.png")
@@ -217,16 +234,34 @@
   
   makePlot <- function(data, grOrgs, grLvls, grGrades, grVars, showPeers = TRUE, aesx, xOrderVar = levels(aesx), aesy = grVars, aesfill, plotTitle, xlab, ylab, extra, outFile){
     
-    d <- data[(data$Org    %in% grOrgs) &
-              (data$sumLvl %in% grLvls) &
-              (data$Grade  %in% grGrades), c("Org", "Site", "Year", grVars)] # "Prog", 
-    if (showPeers == FALSE) d <- d[!grepl("Peer", d$Site), ] # XXX We may want to generalize this beyond just looking in the Site field for peers, e.g. include  "& !grepl("Peer", d$Prog)"
     
     # Set the order for the x-variables to be displayed (releveling aesx)
     d[, aesx] <- factor(d[, aesx], levels = d[order(xOrderVar), aesx])
-
+    
     
     # Set colors for each x (or fill? ) ... XXX Look into how colors are declared in different graph types
+    
+  
+  
+  
+    
+    
+    
+  varsToGraph <- c("GradeLvl", "RaceEth", "Lunch", "TestPlMath", "TestPlRead","MathME_by_Gr","ReadME_by_Gr", "MathTestSs_by_Gr", "ReadTestSs_by_Gr", "MathGain", "ReadGain", "PctAtt", "SchAtt_by_ElemGr", "SchAtt_by_HsGr")
+  ## Would it be helpful to establish default x and y titles for variables?
+      
+  
+  
+  **** To handle certain grade-specific variables like ISAT averages, Attendance by Elem grade, or attendance by HS grades, we could handle that in the create_summary_stats.R code where a variable is
+        defined for a subset of grades, is NA fo other grades, and where we drop NAs coming into the graphing code
+    ### NSM To handle regressions, we could add an option regarding color scale, which would just create just a ramping color scale, as well as an option to add standard errors
+  
+  
+  
+  useFillCat <- c(myfill5, "#885533")
+    useFill <- c(myfill5, "#885533", "#BB2800")
+  
+  
     
        
     myPlot <- ggplot(data=d, aes_string(x=aesx, y=aesy, fill=aesfill)) +
