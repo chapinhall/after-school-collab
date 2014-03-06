@@ -17,6 +17,7 @@
 
   library(reshape)
   library(plyr)
+  library("data.table")
   ds <- function(x){ deparse(substitute(x))}
   
   useScrambledData <- 0
@@ -77,12 +78,12 @@
   
   cNames <- colnames(myData)
   calcVars <- c("sid", "Org", "Site", "fGradeLvl", "SchYear", "schlid","mathss", "readss", "mathgain", "readgain", "Pct_Attend",
-                grep("bRace",     cNames, value=T),
-                grep("bLunch",    cNames, value=T),
-                grep("Tract_",    cNames, value=T),
+                grep("bRace",      cNames, value=T),
+                grep("bLunch",     cNames, value=T),
+                grep("Tract_",     cNames, value=T),
                 grep("fGradeLvl_", cNames, value=T),
-                grep("mathpl_",   cNames, value=T),
-                grep("readpl_",   cNames, value=T)) 
+                grep("mathpl_",    cNames, value=T),
+                grep("readpl_",    cNames, value=T)) 
   calcData <- myData[,calcVars]
   detach(myData)
   
@@ -109,6 +110,10 @@
   ctsMean_bySite    <- aggregate(calcData[, meanVars], list(Org, Site            ), mean, na.rm = T)
   ctsMean_byOrgGr   <- aggregate(calcData[, meanVars], list(Org,        fGradeLvl), mean, na.rm = T)
   ctsMean_bySiteGr  <- aggregate(calcData[, meanVars], list(Org, Site,  fGradeLvl), mean, na.rm = T)
+  
+  # XXX testing replacement of these calculations with data.table calculations.
+  cd.dt <- data.table(calcData, key = Org)
+  ctsMean_byOrg.dt <- cd.dt[, ]
     
   colnames(ctsMean_byOrg)[1]    <- "Org"; ctsMean_byOrg$Site <-   "All";           ctsMean_byOrg$Grade  <- "All";
   colnames(ctsMean_bySite)[1]   <- "Org"; colnames(ctsMean_bySite)[2] <- "Site";   ctsMean_bySite$Grade <- "All";
@@ -170,8 +175,6 @@
   
  # Define the function to use and process averages
   calcPeerAvgs <- function(myPopn){
-  
-    
     
     avgCalcs <- t(mapply(PeerAvg_forSV,
                          rep(byVals,  times=length(ctsVars)),
