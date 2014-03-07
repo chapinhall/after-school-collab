@@ -112,8 +112,8 @@
   ctsMean_bySiteGr  <- aggregate(calcData[, meanVars], list(Org, Site,  fGradeLvl), mean, na.rm = T)
   
   # XXX testing replacement of these calculations with data.table calculations.
-  cd.dt <- data.table(calcData, key = Org)
-  ctsMean_byOrg.dt <- cd.dt[, ]
+  #cd.dt <- data.table(calcData, key = Org)
+  #ctsMean_byOrg.dt <- cd.dt[, ]
     
   colnames(ctsMean_byOrg)[1]    <- "Org"; ctsMean_byOrg$Site <-   "All";           ctsMean_byOrg$Grade  <- "All";
   colnames(ctsMean_bySite)[1]   <- "Org"; colnames(ctsMean_bySite)[2] <- "Site";   ctsMean_bySite$Grade <- "All";
@@ -136,6 +136,9 @@
   ctsMeans$Year <- "2012-13" # Placeholder before more years are introduced
   ctsMeans$Site[ctsMeans$Org=="None"] <- "None" # Need to distinguish these at the site level for plotting purposes (see gen_viz script)
   
+  ## Rotate from wide to long - easier for plotting
+  ctsMeansLong <- reshape(ctsMeans, direction = 'long', varying = list(names(ctsMeans)[2:51]), v.names = "Mean", timevar = "Variable", times = (names(ctsMeans)[2:51]))
+  ctsMeansLong <- subset(ctsMeansLong, select = -c(id))
 
 #----------------------------------------------------------------------------
 #----------------------------------------------------------------------------
@@ -258,9 +261,9 @@
   #---------------
   
   if (useScrambledData==1) { 
-    save(ctsMeans,    file = paste0(dataPath,"ctsMeans","_DEMO.Rda"))
+    save(ctsMeansLong,    file = paste0(dataPath,"ctsMeans","_DEMO.Rda"))
   } else {  
-    save(ctsMeans,    file = paste0(dataPath,"ctsMeans.Rda"))
+    save(ctsMeansLong,    file = paste0(dataPath,"ctsMeans.Rda"))
     save(myData, file = paste0(dataPath, "subset_CpsYss_PP13.Rda"))
   }
 
