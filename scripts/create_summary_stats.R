@@ -115,10 +115,23 @@
   #cd.dt <- data.table(calcData, key = Org)
   #ctsMean_byOrg.dt <- cd.dt[, ]
     
-  colnames(ctsMean_byOrg)[1]    <- "Org"; ctsMean_byOrg$Site <-   "All";           ctsMean_byOrg$Grade  <- "All";
-  colnames(ctsMean_bySite)[1]   <- "Org"; colnames(ctsMean_bySite)[2] <- "Site";   ctsMean_bySite$Grade <- "All";
-  colnames(ctsMean_byOrgGr)[1]  <- "Org"; ctsMean_byOrgGr$Site <- "All";           colnames(ctsMean_byOrgGr)[2]  <- "Grade";
-  colnames(ctsMean_bySiteGr)[1] <- "Org"; colnames(ctsMean_bySiteGr)[2] <- "Site"; colnames(ctsMean_bySiteGr)[3] <- "Grade";
+  colnames(ctsMean_byOrg)[1]    <- "Org" 
+  ctsMean_byOrg$Site[ctsMean_byOrg$Org=="None"] <- "Non-Participants"
+  ctsMean_byOrg$Site[ctsMean_byOrg$Org!="None"] <- paste0("All ",ctsMean_byOrg$Org[ctsMean_byOrg$Org!="None"]," Sites")
+  ctsMean_byOrg$Grade  <- "All Grades"
+  
+  colnames(ctsMean_bySite)[1]   <- "Org"
+  colnames(ctsMean_bySite)[2]   <- "Site"
+  ctsMean_bySite$Grade          <- "All Grades"
+  
+  colnames(ctsMean_byOrgGr)[1]  <- "Org"
+  ctsMean_byOrgGr$Site[ctsMean_byOrgGr$Org=="None"] <- "Non-Participants"
+  ctsMean_byOrgGr$Site[ctsMean_byOrgGr$Org!="None"] <- paste0("All ",ctsMean_byOrgGr$Org[ctsMean_byOrgGr$Org!="None"]," Sites")
+  colnames(ctsMean_byOrgGr)[2]  <- "Grade";
+  
+  colnames(ctsMean_bySiteGr)[1] <- "Org"
+  colnames(ctsMean_bySiteGr)[2] <- "Site"
+  colnames(ctsMean_bySiteGr)[3] <- "Grade"
   
   
   # ERW: will need to add school year as another unit of analysis
@@ -134,12 +147,11 @@
   ctsMeans$Org  <- as.character(ctsMeans$Org)
   ctsMeans$Site <- as.character(ctsMeans$Site)
   ctsMeans$Year <- "2012-13" # Placeholder before more years are introduced
-  ctsMeans$Site[ctsMeans$Org=="None"] <- "None" # Need to distinguish these at the site level for plotting purposes (see gen_viz script)
   
   ## Rotate from wide to long - easier for plotting
   ctsMeansLong <- reshape(ctsMeans, direction = 'long', varying = list(names(ctsMeans)[2:51]), v.names = "Mean", timevar = "Variable", times = (names(ctsMeans)[2:51]))
   ctsMeansLong <- subset(ctsMeansLong, select = -c(id))
-
+  
 #----------------------------------------------------------------------------
 #----------------------------------------------------------------------------
 ## Calculate average characteristics for representative peers in same schools

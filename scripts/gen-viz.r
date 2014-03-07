@@ -24,12 +24,17 @@
   library(ggplot2)
   library(scales)
 
-  myfill  <- c("#CC3300", "#660000") #orange/red and dark red ... NSM - these are good YMCA colors
-  myfill2 <- c("#CC6600", "#480000") #darker orange and maroon
-  myfill3 <- c("#FF6600", "#480000") #lighter orange and maroon
-  myfill4 <- c("#CC6600", "#006666") #darker orange and teal
-  myfill5 <- c("#CC6600", "#003333") #darker orange and darker teal
-  bluesFill <- c("#005555", "#000077")
+  YMCAfill  <- c("#ED1C24", "#F47920", "#92278F") #red, orange, and purple - hex codes from YMCA standards (http://marketingfrankenstein.weebly.com/uploads/6/9/2/0/6920095/graphic_standards_for_3rd_parties.pdf)
+  ASMfill <- c("#3F227C", "#A4B635", "#211F21") # purple, lime, and grey - hex codes from ASM website colors
+  
+  # Other old fills we could use
+  ##myfill1 <- c("#CC3300", "#660000") #orange/red and dark red ... NSM - these are good YMCA colors
+  ##myfill2 <- c("#CC6600", "#480000") #darker orange and maroon
+  ##myfill3 <- c("#FF6600", "#480000") #lighter orange and maroon
+  ##myfill4 <- c("#CC6600", "#006666") #darker orange and teal
+  ##myfill5 <- c("#CC6600", "#003333") #darker orange and darker teal
+  ##bluesfill <- c("#005555", "#000077")
+  
   
   myRes <- 600
   myWidth  <- 4.67 #Using inches (for ggsave)
@@ -37,27 +42,19 @@
   #Using pixels: myWidth <- 2800
   #Using pixels: myHeight <- 2100
 
-## Load data - ERW: I don't think we need this kind of data anymore.
-  # Will need to rework the scrambled indicators to pull the appropriate ctsMeans, of course.
-#  if (useScrambledData==1) {
-#    load(paste0(dataPath,"Scram.Rda"))
-#    myData <- Scram
-#    rm(Scram)
-#    myOutDir <- paste0(myDir,"demos/") 
-#    scramInd <- "_DEMO"
-#  } else {
-#    load(paste0(dataPath,"subset_CpsYss_PP13.Rda"))
-#    myOutDir <- paste0(myDir,"output/")
-#    scramInd <- ""
-#  }
+## Load data
+  if (useScrambledData==1) {
+      myOutDir <- paste0(myDir,"demos/") 
+      scramInd <- "_DEMO"
+  } else {
+      myOutDir <- paste0(myDir,"output/")
+      scramInd <- ""
+  }
 
-#  try(detach(myData), silent=T)
-#  attach(myData)
-
-#  load(paste0(dataPath,"ctsMeans",scramInd,".Rda"))
-  load(paste0(dataPath,"ctsMeans.Rda"))
+  load(paste0(dataPath,"ctsMeans",scramInd,".Rda"))
   ctsMeans <- ctsMeansLong
-
+  rm(ctsMeansLong)
+  
 #---------------------------------------#
 #---------------------------------------#
 ### Graphs for Non-Org, Org, and Site ###
@@ -67,31 +64,73 @@
 #if (1==runDescGraphs) {
 
   
-  makePlot <- function(VarList, VarLabelList = VarList, orgname, sitename = "All", grades = c("All")){
-    data <- ctsMeans[
+  makePlot <- function(
+                VarList, orgname, sitename = "All", grades = c("All Grades"),  # main parameters - restrict data and shape graph
+                title = '', ylab = '', xlab = '',                              # titles
+                yscaletype = percent,                                          # to see raw means rather than percents, set yscaletype = waiver()
+                xnames = waiver()                                              # vector of variable names in the same order as the variables in varlist
+                      ){
+    
+    # Restrict dataset based on primary parameters
+    
+        data <- ctsMeans[
                 (ctsMeans$Org %in% c(orgname, "None") & 
-                 ctsMeans$Site %in% c(sitename, "All", "None") & 
+                 ctsMeans$Site %in% c(sitename, paste0("All ",orgname," Sites"), "Non-Participants") & 
                  ctsMeans$Grade %in% grades &
-                 ctsMeans$Var %in% VarList),]
-    print(data) # for debugging - remove later
-    if (sitename != "All") {data$fill = data$Site} else {data$fill = data$Org} 
-    #ERW: ggplot needs fill to be defined as part of dataframe to find it (aes won't find a variable "fill" otherwise)
-    plot <- ggplot(data=data, aes(x=Variable, y=Mean, fill = fill)) + geom_bar(stat = 'identity', position = 'dodge')
-    return(plot) # necessary to generate output!
+                 ctsMeans$Variable %in% VarList),]
+    
+    # Make sure that graph will display variables from L to R in the order specified in VarList
+    
+        data$Variable <- factor(data$Variable, levels = VarList) 
+    
+    # Print dataset for debugging purposes (remove this once all is final)
+    
+        print(data)
+
+    # Define the fill value as a part of the data frame (aes.fill can only equal a variable in the df)
+    
+        if (sitename != "All") { data$fill = data$Site } else { data$fill = data$Org } 
+    
+    # Define the fill to match organization
+    
+        useFill <- eval(parse(text = paste0(orgname,"fill")))
+     
+    # Create plot
+    
+       plot <- ggplot(data=data, aes(x=Variable, y=Mean, fill = fill)) + 
+                geom_bar(stat = 'identity', position = 'dodge', width=0.7) +
+                ggtitle(title) +
+                scale_y_continuous(labels = yscaletype, name = ylab) +
+                scale_x_discrete(name = xlab, labels = xnames) +
+                guides(fill = guide_legend(title = NULL)) + theme(legend.position = 'bottom') +
+                scale_fill_manual(values = useFill)
+    
+    # Return plot - without this, function will not generate output!
+    
+        return(plot)
+  
   }
 
-  # Still need: x axis labels (default to varname); 
-      #scale of y axis (default to continuous/percent); 
-      #all titles/labels; 
-      #define fill colors
+
+  # Still need: 
+      #incorporate school based peers
+      #incorporate multiple years
+      #define looping graph generation
+      #introduce order var
+  
+  # Then:
+      # add org to org comparisons
+      # year to year comparisons
     
       
   # Testing function
   
-  makePlot("bLunch_FR", orgname = "YMCA")
-  makePlot("bLunch_FR", orgname = "YMCA", site = "South Side YMCA")
-  makePlot(VarList = c("mathpl_W","mathpl_B","mathpl_M","mathpl_E"), VarLabelList = c("Warning","Below","Meets","Exceeds"), orgname="YMCA")
-
+  makePlot("bLunch_FR", orgname = "YMCA", title = "% Free/Reduced Price Lunch", ylab = 'Proportion on Free/Reduced Price Lunch')
+  makePlot(VarList = c("mathpl_W","mathpl_B","mathpl_M","mathpl_E"), xnames = c("Warning","Below","Meets","Exceeds"), orgname="YMCA")
+  makePlot(title = 'Math Test Scores', VarList = c("mathpl_W","mathpl_B","mathpl_M","mathpl_E"), xnames = c("Warning","Below","Meets","Exceeds"), orgname="YMCA", sitename = "South Side YMCA")
+  
+  
+  
   # NSM: note to selves, around here we should also be mocking up loops across orgs, sites within orgs, multiple graph designs (with multiple formats and variable combos)
     # This step is ultimately what would be replaced in a Shiny app, where the sepcific combination of Org/level/variable, etc get chosen by the user
 
