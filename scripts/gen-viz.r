@@ -18,13 +18,13 @@
   dataPath <- "./data/preprocessed-data/" # File path to locate and save data
 
   useScrambledData <- 0
-  runDescGraphs    <- 1
+  runDescGraphs    <- 0
   runRegGraphs     <- 0
 
   library(ggplot2)
   library(scales)
 
-  YMCAfill  <- c("#ED1C24", "#F47920", "#92278F") #red, orange, and purple - hex codes from YMCA standards (http://marketingfrankenstein.weebly.com/uploads/6/9/2/0/6920095/graphic_standards_for_3rd_parties.pdf)
+  YMCAfill  <- c("#ED1C24", "#F47920", "#92278F") # red, orange, and purple - hex codes from YMCA standards (http://marketingfrankenstein.weebly.com/uploads/6/9/2/0/6920095/graphic_standards_for_3rd_parties.pdf)
   ASMfill <- c("#3F227C", "#A4B635", "#211F21") # purple, lime, and grey - hex codes from ASM website colors
   
   # Other old fills we could use
@@ -61,8 +61,7 @@
 #---------------------------------------#
 #---------------------------------------#
 
-#if (1==runDescGraphs) {
-
+##### Define general plotting function  ##########
   
   makePlot <- function(
                 VarList, orgname, sitename = "All", grades = c("All Grades"),  # main parameters - restrict data and shape graph
@@ -108,41 +107,100 @@
     # Return plot - without this, function will not generate output!
     
         return(plot)
-  
+        # ERW: Add code in here to output plot to saved location.
   }
 
 
-  # Still need: 
-      #incorporate school based peers
-      #incorporate multiple years
-      #define looping graph generation
-      #introduce order var
   
-  # Then:
-      # add org to org comparisons
-      # year to year comparisons
-    
-      
-  # Testing function
+  # Samples of function in action - this code can be removed eventually
   
   makePlot("bLunch_FR", orgname = "YMCA", title = "% Free/Reduced Price Lunch", ylab = 'Proportion on Free/Reduced Price Lunch')
-  makePlot(VarList = c("mathpl_W","mathpl_B","mathpl_M","mathpl_E"), xnames = c("Warning","Below","Meets","Exceeds"), orgname="YMCA")
   makePlot(title = 'Math Test Scores', VarList = c("mathpl_W","mathpl_B","mathpl_M","mathpl_E"), xnames = c("Warning","Below","Meets","Exceeds"), orgname="YMCA", sitename = "South Side YMCA")
   
-  
-  
-  # NSM: note to selves, around here we should also be mocking up loops across orgs, sites within orgs, multiple graph designs (with multiple formats and variable combos)
-    # This step is ultimately what would be replaced in a Shiny app, where the sepcific combination of Org/level/variable, etc get chosen by the user
 
+  
+######  Define Variable-Specific Criteria #########
+
+  Vars <- c("bLunch_FR","bRace_B","bRace_H","bRace_W","bRace_M","bRace_O","fGradeLvl_PK","fGradeLvl_K","fGradeLvl_1",
+            "fGradeLvl_2","fGradeLvl_3","fGradeLvl_4","fGradeLvl_5","fGradeLvl_6","fGradeLvl_7","fGradeLvl_8",
+            "fGradeLvl_9","fGradeLvl_10", "fGradeLvl_11","fGradeLvl_12","mathgain","mathpl_W","mathpl_B","mathpl_M",
+            "mathpl_E","mathpl_ME","mathss","Pct_Attend","readgain","readpl_W","readpl_B","readpl_M","readpl_E",
+            "readpl_ME","readss")
+  
+  VarGroup <- Vars
+  metadata <- data.frame(Vars,VarGroup,stringsAsFactors = FALSE)
+  metadata$VarGroup[metadata$Vars %in% c("bRace_B","bRace_H","bRace_W","bRace_M","bRace_O")] <- "Race"
+  metadata$VarGroup[metadata$Vars %in% c("fGradeLvl_PK","fGradeLvl_K","fGradeLvl_1","fGradeLvl_2","fGradeLvl_3","fGradeLvl_4",
+                                         "fGradeLvl_5","fGradeLvl_6","fGradeLvl_7","fGradeLvl_8","fGradeLvl_9","fGradeLvl_10",
+                                         "fGradeLvl_11","fGradeLvl_12")] <- "Grades"
+  metadata$VarGroup[metadata$Vars %in% c("mathpl_W","mathpl_B","mathpl_M","mathpl_E")] <- "MathLevel"
+  metadata$VarGroup[metadata$Vars %in% c("readpl_W","readpl_B","readpl_M","readpl_E")] <- "ReadLevel"
+  
+  metadata$VarXNames <- c("Free/Reduced Lunch","Black","Hispanic","White","Multiracial","Other","PK","K","1","2","3","4","5","6",
+                          "7","8","9","10", "11","12","Score Gain - Math","Warning","Below","Meets","Exceeds","Meets/Exceeds",
+                          "Math Scores","Percent Attending","Score Gain - Reading","Warning","Below","Meets","Exceeds",
+                          "Meets/Exceeds","Reading Scores")
+  # Other data to add to this data frame - titles, xlabels, ylabels.  
+  # Also values for yscaletype (= waiver()) for scores and other graphs that shouldn't be graphed as percents.
+  
+  
+  # For categorical graphs, need to create lists of variables and variable labels that go together on one graph
+  # These have already been defined above by VarGroup
+  createlists <- function(group, tobegrouped) {
+    list <- tobegrouped[metadata$VarGroup == group]
+    return(list)}
+  
+  vargroups <- levels(as.factor(metadata$VarGroup))
+  varlists <- sapply(vargroups, createlists, tobegrouped = metadata$Vars)
+  xnamelists <- sapply(vargroups, createlists, tobegrouped = metadata$VarXNames)
+  
+  
+  
+#######  Generate Graphs Iteratively ##############
+  
+  
+if (1==runDescGraphs) {
+  
+  # ERW: This is the general idea - it's working.
+  lapply(varlists, makePlot, orgname = "YMCA")
+  
+  #ERW: But to add more inputs, we need mapply, and THIS ISN'T WORKING - ONCE IT IS, ITERATION SHOULD BE ALL SET.  
+  # This is with just varlists and xnames specified, but will include titles, etc.
+  mapply(makePlot, VarList = varlists, xnames = xnamelists, orgname = "YMCA")
+  iterate <- function(orgname,sitename) <- {
+    mapply(makePlot, VarList = varlists, xnames = xnamelists, orgname = orgname, sitename = sitename)
+  }
+  
+  #Once this is working, can iterate across orgs and sites.
+    
   orgs  <- levels(as.factor(ctsMeans$Org))
-  sites <- levels(as.factor(ctsMeans$Site))
-  # ERW School based peers are not currently in data set, and depending on how they are incorporated it might change what this looks like.
-  # Need to iterate through orgs and sites, restricting data and creating graphs  
+    
+  orgGraph <- (orgname) {
+    sites <- unique(ctsMeans$Site[ctsMeans$Org == orgname])
+    lapply(sites, iterate, orgname = orgname)
+  }
+
+  lapply(orgs, OrgGraph)
+  
+
+  
+  # Next step: Fix mapply.  
+    
+  # After that: 
+      #incorporate school based peers into ctsMeans data
+      #incorporate multiple years and allow for iteration over years
+      #introduce order var (i.e. order in which bars display - Org, Non-Org, Site...etc.) - see old code samples below
+      #add some kind of output statement to the makePlot function so the graphs print somewhere (can pull this back in from old code)
+  
+  # Also:
+      # add org to org comparisons
+      # year to year comparisons
+    #For these, need to create fake data that simulates multiple orgs/multiple years (before ASM is ready)
   
   
   
   #-------------------------------------------------------
-  #### OLDER -- NICK'S CODE THAT IS UNDER ADAPTATION ABOVE
+  #### Nick's old code for OrderVar
   #-------------------------------------------------------
 
   ## Set default graph order.  ----- ERW: I think this needs to be reworked as we finalize data set structure.
@@ -166,17 +224,3 @@
     
     # Set the order for the x-variables to be displayed (releveling aesx)
     d[, aesx] <- factor(d[, aesx], levels = d[order(xOrderVar), aesx])
-    
-    # Set colors for each x (or fill? ) ... XXX Look into how colors are declared in different graph types
-
-  varsToGraph <- c("GradeLvl", "RaceEth", "Lunch", "TestPlMath", "TestPlRead","MathME_by_Gr","ReadME_by_Gr", "MathTestSs_by_Gr", "ReadTestSs_by_Gr", "MathGain", "ReadGain", "PctAtt", "SchAtt_by_ElemGr", "SchAtt_by_HsGr")
-  ## NSM: Would it be helpful to establish default x and y titles for variables?
-  
-  useFillCat <- c(myfill5, "#885533")
-  useFill <- c(myfill5, "#885533", "#BB2800")
-  
-  
-  }
-  
-  
-  
