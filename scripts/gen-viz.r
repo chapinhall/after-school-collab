@@ -52,8 +52,6 @@
   }
 
   load(paste0(dataPath,"ctsMeans",scramInd,".Rda"))
-  ctsMeans <- ctsMeansLong
-  rm(ctsMeansLong)
   
 #---------------------------------------#
 #---------------------------------------#
@@ -104,10 +102,15 @@
                 guides(fill = guide_legend(title = NULL)) + theme(legend.position = 'bottom') +
                 scale_fill_manual(values = useFill)
     
-    # Return plot - without this, function will not generate output!
+    # Output plot to saved file
+    
+        myGraphOut <- paste0(myOutDir,orgname,"/",sitename,"/")
+        print(myGraphOut)
+        ggsave(filename = paste0(myGraphOut, "CpsVsOrg",VarList[1],".png"), plot = plot, dpi = myRes, width = myWidth, height = myHeight)
+    
+    # Return plot - this displays the plot once the function has run
     
         return(plot)
-        # ERW: Add code in here to output plot to saved location.
   }
 
 
@@ -187,10 +190,9 @@ if (1==runDescGraphs) {
   # Next step: Fix mapply.  
     
   # After that: 
-      #incorporate school based peers into ctsMeans data
+      #incorporate school based peers into graphing utility
       #incorporate multiple years and allow for iteration over years
       #introduce order var (i.e. order in which bars display - Org, Non-Org, Site...etc.) - see old code samples below
-      #add some kind of output statement to the makePlot function so the graphs print somewhere (can pull this back in from old code)
   
   # Also:
       # add org to org comparisons
