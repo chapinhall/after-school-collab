@@ -172,14 +172,63 @@
   colnames(ctsMean_bySch)[1]    <- "Site"; ctsMean_bySch$Grade  <- "All"; 
   colnames(ctsMean_bySchGr)[1]  <- "Site"; colnames(ctsMean_bySchGr)[2] <- "Grade"
   
- # Get school %s by population and treatment status
+ # Get school %s by population and treatment status - ERW: if below is working right this can be removed.
   SchProp_bySite <- prop.table(table(schlid, Site), 2) # Percent of students from each school at each site
-  #SchProp_byAny  <- prop.table(table(schlid, fAnyYss), 2) # Percent of students from each school in treatment/control
-    ## ERW: Stopping this statement for now, since I dropped fAnyYss.  Not sure the value of this calculation?
-    
+  SchProp_byAny  <- prop.table(table(schlid, Org), 2) # Percent of students from each school in org/control
 
   
-  # ERW stopping here for now and focusing on getting graphs working with the reduced data set. Not sure yet what this data should look like.
+  # Develop functions to get peer information for a given org and site
+  wgtedmean <- function(school, proportions, means) {
+    meanval <- proportions[,c(school)] * means[,c(school)]
+    return(meanval)
+  }
+  
+  PeerAvg_bySite <- function(site, org, var) {
+    restData <- calcData[calcData$Org %in% c("None", org),]
+    schoolprop <- prop.table(table(restData$schlid, restData$Site), 2)
+    
+    sitedata <- schoolprop[,site]
+    siteprops <- sitedata[sitedata > 0]
+    schools <- paste0("s",names(siteprops))
+    names(siteprops) <- schools
+    df <- as.data.frame(t(as.data.frame(siteprops)))
+    
+    schooldata <- ctsMean_bySch[,c("Site",var)]
+    schoolmeans <- schooldata[,2]
+    schools2 <- paste0("s",schooldata$Site)
+    names(schoolmeans) <- schools2
+    df2 <- as.data.frame(t(as.data.frame(schoolmeans)))
+    
+    means <- lapply(colnames(df), wgtedmean, df, df2)
+    peeravg <- sum(unlist(means))
+    results <- c(org, site, var, peeravg)
+    return(results)
+  }
+  
+  
+  # Using these to generate peer means by site (done for one org for now, but easily generalized across orgs)
+  
+  org <- "YMCA"
+  orgsites <- calcData$Site[calcData$Org==org]
+  orgsitelist <- unique(orgsites)[!is.na(unique(orgsites))]
+  ctsMean_bySitePeer <- as.data.frame(t(mapply(PeerAvg_bySite, site = rep(orgsitelist, each = length(meanVars)), var = meanVars, org = org)))
+  colnames(ctsMean_bySitePeer) <- c("Org","Site", "Variable", "Mean")
+  ctsMean_bySitePeer$Site <- paste0(ctsMean_bySitePeer$Site,"\nSch-Based Peers")
+  
+  # XXX: Why are there NaN's here?  (And elsewhere in calculated means).  Need to track these anomalies down and check data.
+  # TBD: peer based averages by grade, flexibility by year.
+  
+  ctsMean_bySitePeer$Grade <- "All Grades"
+  ctsMean_bySitePeer$Year <- "2012-13"
+  
+  
+  
+  ##################################################################################################################
+  
+  ###### ERW: I can't follow anything below this - 
+  ######         functions reference a lot of variables that are not defined and not given as inputs...?
+  ######      Regardless, I think most of it is replaced by the above.
+  
   
   # Create function that combines "peer" averages by proportionately weighting school averages
   popPeerAvg <- function(pop, var) {
@@ -199,10 +248,11 @@
     avgCalcs.df <- data.frame(avgCalcs)
     colnames(avgCalcs.df) <- c(byVar, "ctsVar", "mean")
     avgCalcs.df$Mean <- as.numeric(levels(avgCalcs.df$mean)[avgCalcs.df$mean]) # Convert factor to numeric
-  
+    return(avgCalcs.df)
+    
     # Transpose the resulting dataframe
-    avgCalcs.wide <- cast(avgCalcs.df, Site ~ ctsVar, value = "mean")
-    return(avgCalcs.wide)
+    #avgCalcs.wide <- cast(avgCalcs.df, Site ~ ctsVar, value = "mean")
+    #return(avgCalcs.wide)
   }
   
   peersBySite <- calcPeerAvgs(byVar = )
@@ -272,10 +322,12 @@
   ### SAVE RESULTS
   #---------------
   
+  ctsMeans <- rbind(ctsMeansLong, ctsMean_bySitePeer)
+  
   if (useScrambledData==1) { 
-    save(ctsMeansLong,    file = paste0(dataPath,"ctsMeans","_DEMO.Rda"))
+    save(ctsMeans,    file = paste0(dataPath,"ctsMeans","_DEMO.Rda"))
   } else {  
-    save(ctsMeansLong,    file = paste0(dataPath,"ctsMeans.Rda"))
+    save(ctsMeans,    file = paste0(dataPath,"ctsMeans.Rda"))
     save(myData, file = paste0(dataPath, "subset_CpsYss_PP13.Rda"))
   }
 
