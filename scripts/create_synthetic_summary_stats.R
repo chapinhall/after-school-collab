@@ -1,7 +1,7 @@
 #---------------------------------------------#
 #---------------------------------------------#
 # CREATE DESCRIPTIVE SUMMARY STATISTICS	      # 
-#                                             #
+#     FOR SYNTHETIC ANALYSIS (YEAR, oRG)      #
 # Authors: Nick Mader, Ian Matthew Morey,     # 
 #		    and Emily Wiegand		                  #  
 #---------------------------------------------#
@@ -17,40 +17,15 @@
 
   library(reshape)
   library(plyr)
-  library("data.table")
-  ds <- function(x){ deparse(substitute(x))}
   
-  useScrambledData <- 0
-
 ## Load selected data
 
-  try(detach(myData), silent=T)
-
-  if (useScrambledData==1) {
-    load(paste0(dataPath,"Scram.Rda"))
-    myData <- Scram
-    rm(Scram)
-    myGraphOut <- paste0(myDir,"/demos/") 
-  } else {
-  	load("./data/preprocessed-data/CpsYss_PP13.Rda")
-  	cNames <- colnames(CpsYss_PP13)
-  	keepVars <- c("sid", "SchYear", "Stud_Tract", "schlid", "fGradeLvl", "grade_level",
-                "Female", "disab", "fRace", grep("bRace", cNames, value=T), grep("bLunch", cNames, value=T),
-                "readss", "mathss", "readgain", "mathgain", "readpl", "mathpl", "mathpl_ME", "readpl_ME", "mathss_pre", "readss_pre",
-                "Pct_Attend", "Pct_Attend_pre", "bOnTrack", "bHsGrad",
-                "Stud_X", "Stud_Y", grep("Tract_", cNames, value=T), "Stud_CcaNum", "Stud_CcaName",
-                "fYssType", "fYssSite", "fAnyYss", "UsedYss") #"Pct_Absent", "Pct_Absent_pre",
-      myData <- CpsYss_PP13[, keepVars]
-	  myGraphOut <- paste0(myDir,"/output/")
-      rm(CpsYss_PP13)} 
-
-## XXX Short term edits to make data set match eventual result (IMM is working on data prep)
-## NOTE THAT THESE NEED TO BE DIFFERENT WITH SCRAMBLED DATA.
-  myData$Org[myData$fAnyYss=='YMCA'] <- "YMCA"
-  myData$Org[is.na(myData$Org)] <- "None"
-  myData$Site[myData$fAnyYss=='YMCA'] <- as.character(myData$fYssSite[myData$fAnyYss=='YMCA'])
-  attach(myData)  
+    load(paste0(dataPath,"ScramPlusYrOrg.Rda"))
+    myData <- Scram2
+    rm(Scram2)
+    myData$Site <- myData$cYssSite
   
+  attach(myData)
   
 ## Select variables to summarize
 
@@ -78,7 +53,7 @@
 ## Before calculating summary statistics, create a reduced dataset that includes only the necessary variables
   
   cNames <- colnames(myData)
-  calcVars <- c("sid", "Org", "Site", "fGradeLvl", "SchYear", "schlid","mathss", "readss", "mathgain", "readgain", "Pct_Attend",
+  calcVars <- c("sid", "Org", "Site", "Year", "fGradeLvl", "SchYear", "schlid","mathss", "readss", "mathgain", "readgain", "Pct_Attend",
                 grep("bRace",      cNames, value=T),
                 grep("bLunch",     cNames, value=T),
                 grep("Tract_",     cNames, value=T),
@@ -111,6 +86,8 @@
   ctsMean_bySite    <- aggregate(calcData[, meanVars], list(Org, Site            ), mean, na.rm = T)
   ctsMean_byOrgGr   <- aggregate(calcData[, meanVars], list(Org,        fGradeLvl), mean, na.rm = T)
   ctsMean_bySiteGr  <- aggregate(calcData[, meanVars], list(Org, Site,  fGradeLvl), mean, na.rm = T)
+  ctsMean_byOrgYr    <- aggregate(calcData[, meanVars], list(Org, Year),                  mean, na.rm = T)
+  ctsMean_bySiteYr   <- aggregate(calcData[, meanVars], list(Org, Site, Year), mean, na.rm = T)
   
   # XXX testing replacement of these calculations with data.table calculations.
   #cd.dt <- data.table(calcData, key = Org)
@@ -120,22 +97,34 @@
   ctsMean_byOrg$Site[ctsMean_byOrg$Org=="None"] <- "Non-Participants"
   ctsMean_byOrg$Site[ctsMean_byOrg$Org!="None"] <- paste0("All ",ctsMean_byOrg$Org[ctsMean_byOrg$Org!="None"]," Sites")
   ctsMean_byOrg$Grade  <- "All Grades"
+  ctsMean_byOrg$Year   <- "All Years"
   
   colnames(ctsMean_bySite)[1]   <- "Org"
   colnames(ctsMean_bySite)[2]   <- "Site"
   ctsMean_bySite$Grade          <- "All Grades"
+  ctsMean_bySite$Year            <- "All Years"
   
   colnames(ctsMean_byOrgGr)[1]  <- "Org"
   ctsMean_byOrgGr$Site[ctsMean_byOrgGr$Org=="None"] <- "Non-Participants"
   ctsMean_byOrgGr$Site[ctsMean_byOrgGr$Org!="None"] <- paste0("All ",ctsMean_byOrgGr$Org[ctsMean_byOrgGr$Org!="None"]," Sites")
-  colnames(ctsMean_byOrgGr)[2]  <- "Grade";
+  colnames(ctsMean_byOrgGr)[2]  <- "Grade"
+  ctsMean_byOrgGr$Year          <- "All Years"
   
   colnames(ctsMean_bySiteGr)[1] <- "Org"
   colnames(ctsMean_bySiteGr)[2] <- "Site"
   colnames(ctsMean_bySiteGr)[3] <- "Grade"
+  ctsMean_bySiteGr$Year         <- "All Years"
   
+  colnames(ctsMean_byOrgYr)[1]    <- "Org" 
+  colnames(ctsMean_byOrgYr)[2]    <- "Year"
+  ctsMean_byOrgYr$Site[ctsMean_byOrgYr$Org=="None"] <- "Non-Participants"
+  ctsMean_byOrgYr$Site[ctsMean_byOrgYr$Org!="None"] <- paste0("All ",ctsMean_byOrgYr$Org[ctsMean_byOrgYr$Org!="None"]," Sites")
+  ctsMean_byOrgYr$Grade  <- "All Grades"
   
-  # ERW: will need to add school year as another unit of analysis
+  colnames(ctsMean_bySiteYr)[1]   <- "Org"
+  colnames(ctsMean_bySiteYr)[2]   <- "Site"
+  colnames(ctsMean_bySiteYr)[3]   <- "Year"
+  ctsMean_bySiteYr$Grade          <- "All Grades"
   
   # NSM: Experimenting with data.table, which supposedly has performance advantages
       #DT <- data.table(ctsMean)
@@ -144,10 +133,9 @@
   
   ## Combine summary statistics across different measures into one data frame
   
-  ctsMeans <- rbind(ctsMean_byOrg, ctsMean_byOrgGr, ctsMean_bySite, ctsMean_bySiteGr)
+  ctsMeans <- rbind(ctsMean_byOrg, ctsMean_byOrgGr, ctsMean_bySite, ctsMean_bySiteGr, ctsMean_byOrgYr, ctsMean_bySiteYr)
   ctsMeans$Org  <- as.character(ctsMeans$Org)
   ctsMeans$Site <- as.character(ctsMeans$Site)
-  ctsMeans$Year <- "2012-13" # Placeholder before more years are introduced
   
   ## Rotate from wide to long - easier for plotting
   ctsMeansLong <- reshape(ctsMeans, direction = 'long', varying = list(names(ctsMeans)[2:51]), v.names = "Mean", timevar = "Variable", times = (names(ctsMeans)[2:51]))
