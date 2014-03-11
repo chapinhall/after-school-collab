@@ -1,9 +1,9 @@
 #---------------------------------------------#
 #---------------------------------------------#
-# CREATE DESCRIPTIVE SUMMARY STATISTICS	    # 
+# CREATE DESCRIPTIVE SUMMARY STATISTICS	      # 
 #                                             #
 # Authors: Nick Mader, Ian Matthew Morey,     # 
-#		    and Emily Wiegand		    #  
+#		    and Emily Wiegand		                  #  
 #---------------------------------------------#
 #---------------------------------------------#
 
@@ -17,6 +17,8 @@
 
   library(reshape)
   library(plyr)
+  library("data.table")
+  ds <- function(x){ deparse(substitute(x))}
   
   useScrambledData <- 0
 
@@ -42,128 +44,261 @@
 	  myGraphOut <- paste0(myDir,"/output/")
       rm(CpsYss_PP13)} 
 
-  attach(myData)
+## XXX Short term edits to make data set match eventual result (IMM is working on data prep)
+  myData$Org[myData$fAnyYss=='YMCA'] <- "YMCA"
+  myData$Org[is.na(myData$Org)] <- "None"
+  myData$Site[myData$fAnyYss=='YMCA'] <- as.character(myData$fYssSite[myData$fAnyYss=='YMCA'])
+  attach(myData)  
   
-
+  
 ## Select variables to summarize
 
   cNames <- colnames(myData)
-  ctsVars <- c("mathss", "readss", "mathgain", "readgain", "mathpl_ME", "readpl_ME", "Pct_Attend", grep("bRace", cNames, value=T),grep("bLunch", cNames, value=T), grep("Tract_", cNames, value=T))  
-  catVars <- c("mathpl", "readpl", "fGradeLvl", "fRace")
-  #ctsVars <- c("mathss", "readss")
+  ctsVars <- c("mathss", "readss", "mathgain", "readgain", "mathpl_ME", "readpl_ME", "Pct_Attend",
+               grep("bRace",  cNames, value=T),
+               grep("bLunch", cNames, value=T),
+               grep("Tract_", cNames, value=T))  
+  catVars <- c("mathpl", "readpl", "fGradeLvl")
   
-## Calculate summary statistics for continuous measures
+  # Create dummy variables of catVar vlaues to be treated as continuous vars
+  for (var in catVars) {
+    cVar <- as.character(get(var))
+    for(val in unique(cVar)){
+      if (!is.na(val)) {
+        newVar <- paste(var, val, sep="_")
+        myData[, newVar] <- ifelse(cVar==val, 1, 0)
+        ctsVars <- c(ctsVars, newVar)
+      }
+    }
+  } # XXX There's likely a more elegant way to do this. Note that model.matrix(~0+var) drops observations with NAs, returning a vector of shorter length (which, at this stage, we don't want)
+
+
+  
+## Before calculating summary statistics, create a reduced dataset that includes only the necessary variables
+  
+  cNames <- colnames(myData)
+  calcVars <- c("sid", "Org", "Site", "fGradeLvl", "SchYear", "schlid","mathss", "readss", "mathgain", "readgain", "Pct_Attend",
+                grep("bRace",      cNames, value=T),
+                grep("bLunch",     cNames, value=T),
+                grep("Tract_",     cNames, value=T),
+                grep("fGradeLvl_", cNames, value=T),
+                grep("mathpl_",    cNames, value=T),
+                grep("readpl_",    cNames, value=T)) 
+  calcData <- myData[,calcVars]
+  detach(myData)
+  
+  # Also, remove obs that didn't match to CPS and are NA for basically all the variables we will use for calculations
+  calcData <- calcData[!is.na(calcData$schlid),]
+  
+  ### ERW: We need to look into who these IDs are and how they got mixed into the dataset.  They should theoretically be removed during
+    ## data preparation unless there is a reason to keep them in.  I'm comfortable to drop now since NAs get dropped from all calcs.  But 
+    ## some might have a few values?  How does that happen?  Fundamental question: are these people in the CPS master file?
+  
     
-  ctsMean_byAny     <- aggregate(myData[, ctsVars], list(fAnyYss),               mean, na.rm = T)
-  ctsMean_byAnyGr   <- aggregate(myData[, ctsVars], list(fAnyYss, fGradeLvl),    mean, na.rm = T)
-  ctsMean_bySite    <- aggregate(myData[, ctsVars], list(fYssSite),            mean, na.rm = T)
-  ctsMean_bySiteGr  <- aggregate(myData[, ctsVars], list(fYssSite, fGradeLvl), mean, na.rm = T)
-  ctsMean_bySch     <- aggregate(myData[, ctsVars], list(schlid),                mean, na.rm = T)
-  ctsMean_bySchGr   <- aggregate(myData[, ctsVars], list(schlid, fGradeLvl),     mean, na.rm = T)
+## Calculate summary statistics
+  attach(calcData)
   
-  colnames(ctsMean_byAny)[1]    <- "Site"; ctsMean_byAny$Grade <- "All"
-  colnames(ctsMean_byAnyGr)[1]  <- "Site"; colnames(ctsMean_byAnyGr)[2] <- "Grade"
-  colnames(ctsMean_bySite)[1]   <- "Site"; ctsMean_bySite$Grade <- "All"
-  colnames(ctsMean_bySiteGr)[1] <- "Site"; colnames(ctsMean_bySiteGr)[2] <- "Grade"
-  colnames(ctsMean_bySch)[1]    <- "Site"; ctsMean_bySch$Grade <- "All"
-  colnames(ctsMean_bySchGr)[1]  <- "Site"; colnames(ctsMean_bySchGr)[2] <- "Grade"
-
-## Combine summary statistics across different measures into one data frame
+  meanVars <- c("mathss", "readss", "mathgain", "readgain", "Pct_Attend",
+                grep("bRace",     cNames, value=T),
+                grep("bLunch",    cNames, value=T),
+                grep("Tract_",    cNames, value=T),
+                grep("GradeLvl_", cNames, value=T),
+                grep("mathpl_",   cNames, value=T),
+                grep("readpl_",   cNames, value=T)) 
   
-  statDFs <- list(ctsMean_bySiteGr,ctsMean_byAny,ctsMean_byAnyGr,ctsMean_bySite,ctsMean_bySch,ctsMean_bySchGr)
-  siteAsChar <- function(df){df$Site <- as.character(df$Site); return(df)}
-  statDFs2 <- lapply(statDFs,siteAsChar)
-  ctsMeans <- do.call("rbind", statDFs2)
+  ctsMean_byOrg     <- aggregate(calcData[, meanVars], list(Org                  ), mean, na.rm = T)
+  ctsMean_bySite    <- aggregate(calcData[, meanVars], list(Org, Site            ), mean, na.rm = T)
+  ctsMean_byOrgGr   <- aggregate(calcData[, meanVars], list(Org,        fGradeLvl), mean, na.rm = T)
+  ctsMean_bySiteGr  <- aggregate(calcData[, meanVars], list(Org, Site,  fGradeLvl), mean, na.rm = T)
   
-## Calculate summary statistics for categorical measures
+  # XXX testing replacement of these calculations with data.table calculations.
+  #cd.dt <- data.table(calcData, key = Org)
+  #ctsMean_byOrg.dt <- cd.dt[, ]
     
-###### ERW: Return to rework this section once I see what is needed for the graphs
-
-  CatCalc <- function(v){
-    table <- as.data.frame(prop.table(table(fAnyYss, myData[, v]), 1))
-    table[, v] <- paste0(v,"_",table[, 2])
-    #out <- cast(table, formula = as.formula(paste0("fAnyYss ~ ",v)), value="Freq")
-    return(table)}
-
-
-
-  x <- CatCalc(cbind(fAnyYss,mathpl,readpl))
-  z <- aggregate(cbind(mathpl, readpl), list(fAnyYss), CatCalc)
-
-  ds <- function(x){ deparse(substitute(x))}
-    
-  myFun <- function(v){
-    table <- as.data.frame(prop.table(table(v)))
-    #table[, ds(v)] <- ds(v) %&% "_" %&% table[, 1]
-    #out <- cast(table, formula = as.formula(". ~ " %&% ds(v)), value="Freq")
-    #return(out)
-    return(table)
-  }
-  z <- aggregate(cbind(mathpl, readpl), list(fAnyYss), CatCalc2)
-    
-  simplerFun <- function(v){
-    x <- prop.table(table(v))        
-    dimnames(x)$v <- dimnames(x)$v
-  }
-  aggregate(cbind(mathpl, readpl), list(fAnyYss), simplerFun)
-    
-  GrDist <- table(fAnyYss, fGradeLvl)
-  GrDistProp <- prop.table(GrDist, 1)  
-  GrDistPropL <- as.data.frame(GrDistProp)  
-  if (s != "All") {
-    p <- prop.table(table(fGradeLvl[fShortSite==s]))
-    df <- data.frame(cbind(s, data.frame(p)))
-    colnames(df) <- colnames(GrDistPropL)
-    GrDistPropL <- rbind(GrDistPropL, df)
-  }
+  colnames(ctsMean_byOrg)[1]    <- "Org" 
+  ctsMean_byOrg$Site[ctsMean_byOrg$Org=="None"] <- "Non-Participants"
+  ctsMean_byOrg$Site[ctsMean_byOrg$Org!="None"] <- paste0("All ",ctsMean_byOrg$Org[ctsMean_byOrg$Org!="None"]," Sites")
+  ctsMean_byOrg$Grade  <- "All Grades"
+  
+  colnames(ctsMean_bySite)[1]   <- "Org"
+  colnames(ctsMean_bySite)[2]   <- "Site"
+  ctsMean_bySite$Grade          <- "All Grades"
+  
+  colnames(ctsMean_byOrgGr)[1]  <- "Org"
+  ctsMean_byOrgGr$Site[ctsMean_byOrgGr$Org=="None"] <- "Non-Participants"
+  ctsMean_byOrgGr$Site[ctsMean_byOrgGr$Org!="None"] <- paste0("All ",ctsMean_byOrgGr$Org[ctsMean_byOrgGr$Org!="None"]," Sites")
+  colnames(ctsMean_byOrgGr)[2]  <- "Grade";
+  
+  colnames(ctsMean_bySiteGr)[1] <- "Org"
+  colnames(ctsMean_bySiteGr)[2] <- "Site"
+  colnames(ctsMean_bySiteGr)[3] <- "Grade"
   
   
+  # ERW: will need to add school year as another unit of analysis
+  
+  # NSM: Experimenting with data.table, which supposedly has performance advantages
+      #DT <- data.table(ctsMean)
+      #ctsMean_alt <- DT[,mean("mathss"), by = fOrg]
+
+  
+  ## Combine summary statistics across different measures into one data frame
+  
+  ctsMeans <- rbind(ctsMean_byOrg, ctsMean_byOrgGr, ctsMean_bySite, ctsMean_bySiteGr)
+  ctsMeans$Org  <- as.character(ctsMeans$Org)
+  ctsMeans$Site <- as.character(ctsMeans$Site)
+  ctsMeans$Year <- "2012-13" # Placeholder before more years are introduced
+  
+  ## Rotate from wide to long - easier for plotting
+  ctsMeansLong <- reshape(ctsMeans, direction = 'long', varying = list(names(ctsMeans)[2:51]), v.names = "Mean", timevar = "Variable", times = (names(ctsMeans)[2:51]))
+  ctsMeansLong <- subset(ctsMeansLong, select = -c(id))
+  
+#----------------------------------------------------------------------------
+#----------------------------------------------------------------------------
 ## Calculate average characteristics for representative peers in same schools
-  # Representative peer group is defined as students who attend the same schools as students in the treatment program.
+#----------------------------------------------------------------------------
+#----------------------------------------------------------------------------
+  
+
+  # The representative peer group is defined as students who attend the same schools as students in the treatment program.
   # If 60% of treatment kids attend School H, and 40% attend School Y, 
   # the appropriate comparison for the mean of the treatment group is not the citywide average, but .6*School H's avg + .4*School Y's.
   # This is one way of correcting for the fact that partcipants are not broadly representative of the CPS system.
   # The below code calculates these averages both for the full treatment group and for each site.
   
- # Get school %s by population and treatment status
-  SchProp_bySite <- prop.table(table(schlid, fYssSite), 2) # Percent of students from each school at each site
-  SchProp_byAny  <- prop.table(table(schlid, fAnyYss), 2) # Percent of students from each school in treatment/control
-  PropData <- SchProp_bySite # First analysis will use site averages
   
+ # Calculate school means overall and by grade
+  ctsMean_bySch     <- aggregate(calcData[, meanVars], list(schlid),              mean, na.rm = T)
+  ctsMean_bySchGr   <- aggregate(calcData[, meanVars], list(schlid, fGradeLvl),   mean, na.rm = T)
+  colnames(ctsMean_bySch)[1]    <- "Site"; ctsMean_bySch$Grade  <- "All"; 
+  colnames(ctsMean_bySchGr)[1]  <- "Site"; colnames(ctsMean_bySchGr)[2] <- "Grade"
   
- # Create function that combines "peer" averages by proportionately weighting school averages
-  PeerAvg_forSV <- function(s, v) {
-    nonNAN <- !is.na(ctsMean_bySch[, v])
-    cbind(s, v, weighted.mean(ctsMean_bySch[nonNAN, v], PropData[nonNAN, s]))
+ # Get school %s by population and treatment status - ERW: if below is working right this can be removed.
+  SchProp_bySite <- prop.table(table(schlid, Site), 2) # Percent of students from each school at each site
+  SchProp_byAny  <- prop.table(table(schlid, Org), 2) # Percent of students from each school in org/control
+
+  
+  # Develop functions to get peer information for a given org and site
+  wgtedmean <- function(school, proportions, means) {
+    meanval <- proportions[,c(school)] * means[,c(school)]
+    return(meanval)
   }
+  
+  PeerAvg_bySite <- function(site, org, var) {
+    restData <- calcData[calcData$Org %in% c("None", org),]
+    schoolprop <- prop.table(table(restData$schlid, restData$Site), 2)
     
+    sitedata <- schoolprop[,site]
+    siteprops <- sitedata[sitedata > 0]
+    schools <- paste0("s",names(siteprops))
+    names(siteprops) <- schools
+    df <- as.data.frame(t(as.data.frame(siteprops)))
+    
+    schooldata <- ctsMean_bySch[,c("Site",var)]
+    schoolmeans <- schooldata[,2]
+    schools2 <- paste0("s",schooldata$Site)
+    names(schoolmeans) <- schools2
+    df2 <- as.data.frame(t(as.data.frame(schoolmeans)))
+    
+    means <- lapply(colnames(df), wgtedmean, df, df2)
+    peeravg <- sum(unlist(means))
+    results <- c(org, site, var, peeravg)
+    return(results)
+  }
+  
+  
+  # Using these to generate peer means by site (done for one org for now, but easily generalized across orgs)
+  
+  org <- "YMCA"
+  orgsites <- calcData$Site[calcData$Org==org]
+  orgsitelist <- unique(orgsites)[!is.na(unique(orgsites))]
+  ctsMean_bySitePeer <- as.data.frame(t(mapply(PeerAvg_bySite, site = rep(orgsitelist, each = length(meanVars)), var = meanVars, org = org)))
+  colnames(ctsMean_bySitePeer) <- c("Org","Site", "Variable", "Mean")
+  ctsMean_bySitePeer$Site <- paste0(ctsMean_bySitePeer$Site,"\nSch-Based Peers")
+  
+  # XXX: Why are there NaN's here?  (And elsewhere in calculated means).  Need to track these anomalies down and check data.
+  # TBD: peer based averages by grade, flexibility by year.
+  
+  ctsMean_bySitePeer$Grade <- "All Grades"
+  ctsMean_bySitePeer$Year <- "2012-13"
+  
+  
+  
+  ##################################################################################################################
+  
+  ###### ERW: I can't follow anything below this - 
+  ######         functions reference a lot of variables that are not defined and not given as inputs...?
+  ######      Regardless, I think most of it is replaced by the above.
+  
+  
+  # Create function that combines "peer" averages by proportionately weighting school averages
+  popPeerAvg <- function(pop, var) {
+    validRows <- !is.na(ctsMean_bySch[, var])
+    schWgt <- prop.table(table(schlid[myPopn])) # Need a way to guarantee that we get 0 entries
+    cbind(s, v, weighted.mean(ctsMean_bySch[validRows, var], p[validRows, s]))
+  }
+  
+ # Define the function to use and process averages
+  calcPeerAvgs <- function(myPopn){
+    
+    avgCalcs <- t(mapply(PeerAvg_forSV,
+                         rep(byVals,  times=length(ctsVars)),
+                         rep(ctsVars, each=length(Sites)),
+                         schProps) ) # XXX Can this be replaced by a ddply call to any advantage? ... it actually works pretty fast
+    rownames(avgCalcs) <- NULL
+    avgCalcs.df <- data.frame(avgCalcs)
+    colnames(avgCalcs.df) <- c(byVar, "ctsVar", "mean")
+    avgCalcs.df$Mean <- as.numeric(levels(avgCalcs.df$mean)[avgCalcs.df$mean]) # Convert factor to numeric
+    return(avgCalcs.df)
+    
+    # Transpose the resulting dataframe
+    #avgCalcs.wide <- cast(avgCalcs.df, Site ~ ctsVar, value = "mean")
+    #return(avgCalcs.wide)
+  }
+  
+  peersBySite <- calcPeerAvgs(byVar = )
+  ## Input needs to be some identified population, where we can do a probability distribution of school attendance.
+  # This can be everyone within a given org (e.g. bYMCA == 1), or a given Site (fYssSite=="mySite"). Previously, the prop.table, was done across one of these indices,
+  # which presumes a single, mutually exclusive index. 
+  # Instead, we could do a table for a subset defined by a given condition. 
+  
+  
+  avgCalcs.wide$Site <- paste0(avgCalcs.wide$Site,"\nSch-Based Peers")
+  avgCalcs.wide$Grade <- "All"
+  
+  
+  
+  ##################################################################
+  # Original code is here
+  
+  
   # Apply this function to for all variables at the site level
     
-  Sites <- levels(fYssSite) # Remember that ctsVars is a list of all variables
+  Sites <- levels(fYssSite)
   
   PeerAvgs_bySite <- t(mapply(PeerAvg_forSV,
-                                         rep(Sites,  times=length(ctsVars)),
-                                         rep(ctsVars, each=length(Sites))
-                                        ) )
+                              rep(Sites,  times=length(ctsVars)),
+                              rep(ctsVars, each=length(Sites))
+                              ) ) # XXX Can this be replaced by a ddply call to any advantage?
   rownames(PeerAvgs_bySite) <- NULL
   PeerAvgs_bySite <- data.frame(PeerAvgs_bySite)
-  colnames(PeerAvgs_bySite) <- c("Site", "ctsVar","Mean")
-  PeerAvgs_bySite$Mean <- as.numeric(levels(PeerAvgs_bySite$Mean)[PeerAvgs_bySite$Mean]) # Convert factor to numeric
+  colnames(PeerAvgs_bySite) <- c("Site", "ctsVar", "mean")
+  PeerAvgs_bySite$Mean <- as.numeric(levels(PeerAvgs_bySite$mean)[PeerAvgs_bySite$mean]) # Convert factor to numeric
 
   # Transpose the resulting dataframe
   
-  ctsMean_bySiteSchPeer <- cast(PeerAvgs_bySite, Site ~ ctsVar, value = "Mean")
+  ctsMean_bySiteSchPeer <- cast(PeerAvgs_bySite, Site ~ ctsVar, value = "mean")
   ctsMean_bySiteSchPeer$Site <- paste0(ctsMean_bySiteSchPeer$Site,"\nSch-Based Peers")
   ctsMean_bySiteSchPeer$Grade <- "All"
+  
   
   # Repeat calculations at treatment group level (create a set of peers for T that attend the same schools as T students)
   
   PropData <- SchProp_byAny # Change proportional dataset
   Status <- levels(fAnyYss)
   PeerAvgs_byAny <- t(mapply(PeerAvg_forSV,
-                                         rep(Status,  length(ctsVars)),
-                                         rep(ctsVars, each=length(Status))
-                                        ) )
+                             rep(Status,  length(ctsVars)),
+                             rep(ctsVars, each=length(Status))
+                             ) )
   rownames(PeerAvgs_byAny) <- NULL
   PeerAvgs_byAny <- data.frame(PeerAvgs_byAny)
   PeerAvgs_byAny$X3 <- as.numeric(levels(PeerAvgs_byAny$X3)[PeerAvgs_byAny$X3])
@@ -176,14 +311,23 @@
   
   ctsMeans <- rbind(ctsMeans,ctsMean_bySiteSchPeer,ctsMean_byAnySchPeer)
   
+  
+  
+  
+  
+  
+  
+  
   #---------------
   ### SAVE RESULTS
   #---------------
   
-if (useScrambledData==1) { 
-  save(ctsMeans,    file = paste0(dataPath,"ctsMeans","_DEMO.Rda"))
-} else {  
-  save(ctsMeans,    file = paste0(dataPath,"ctsMeans.Rda"))
-  save(myData, file = paste0(dataPath, "subset_CpsYss_PP13.Rda"))
-}
+  ctsMeans <- rbind(ctsMeansLong, ctsMean_bySitePeer)
+  
+  if (useScrambledData==1) { 
+    save(ctsMeansLong,    file = paste0(dataPath,"ctsMeans","_DEMO.Rda"))
+  } else {  
+    save(ctsMeansLong,    file = paste0(dataPath,"ctsMeans.Rda"))
+    save(myData, file = paste0(dataPath, "subset_CpsYss_PP13.Rda"))
+  }
 

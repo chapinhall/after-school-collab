@@ -1,9 +1,9 @@
 #---------------------------------------------#
 #---------------------------------------------#
-# SCRAMBLING DATA FOR ANALYSIS DEMOS	    # 
+# SCRAMBLING DATA FOR ANALYSIS DEMOS	        # 
 #                                             #
 # Authors: Nick Mader, Ian Matthew Morey,     # 
-#		    and Emily Wiegand		    #  
+#		    and Emily Wiegand		                 #  
 #---------------------------------------------#
 #---------------------------------------------#
 
@@ -32,10 +32,10 @@
 
 ## Copy the data and randomly resample it
 
-Scram <- CpsYss_PP13
-myN <- nrow(Scram)
-reorder <- sample(myN, myN, replace = T)
-Scram <- Scram[reorder,]
+  Scram   <- CpsYss_PP13
+  myN     <- nrow(Scram)
+  reorder <- sample(myN, myN, replace = T)
+  Scram   <- Scram[reorder,]
     
 ## Randomly reassign treatment
 # Note: Treatment indicator is binary "UsedYss"
@@ -79,8 +79,8 @@ Scram <- Scram[reorder,]
         Scram$cYssSite[Scram$cYssSite == sn] <- LETTERS[siteIndex]
       }
       
-#### ERW: Not sure I see the reason for these two lines.  Need to check in.
-      Scram$fAnyYss  <- factor(Scram$UsedYss, levels=c(0,1), labels=c("Non-Org Alpha", "Org Alpha"))
+#### Establish new factor levels for fAnyYss based on deidentified organization names, and create a factor for the short site names
+      Scram$fAnyYss    <- factor(Scram$UsedYss, levels=c(0,1), labels=c("Non-Org Alpha", "Org Alpha"))
       Scram$fShortSite <- factor(Scram$cYssSite)
  
 ## Clear memory and save data to file

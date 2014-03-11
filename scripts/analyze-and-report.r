@@ -18,8 +18,8 @@
   dataPath <- "./data/preprocessed-data/" # File path to locate and save data
 
   useScrambledData <- 0
-  runDescGraphs    <- 0
-  runRegs          <- 1
+  runDescGraphs    <- 1
+  runRegGraphs     <- 0
 
   library(ggplot2)
   library(scales)
@@ -32,7 +32,7 @@
   bluesFill <- c("#005555", "#000077")
   
   myRes <- 600
-  myWidth <- 4.67 #Using inches (for ggsave)
+  myWidth  <- 4.67 #Using inches (for ggsave)
   myHeight <- 3.5 #Using inches (for ggsave)
   #Using pixels: myWidth <- 2800
   #Using pixels: myHeight <- 2100
@@ -49,7 +49,7 @@
     load(paste0(dataPath,"subset_CpsYss_PP13.Rda"))
     myOutDir <- paste0(myDir,"output/")
     scramInd <- ""
-}
+  }
 
   try(detach(myData), silent=T)
   attach(myData)
@@ -72,6 +72,9 @@
   toGraph <- c("GradeLvl", "RaceEth", "Lunch", "TestPlMath", "TestPlRead","MathME_by_Gr","ReadME_by_Gr", "MathTestSs_by_Gr", "ReadTestSs_by_Gr", "MathGain", "ReadGain", "PctAtt", "SchAtt_by_ElemGr", "SchAtt_by_HsGr")
 
 # Write a function to define the dataset (since the data needed depends on the site and variable)
+  # NSM: for more modular code, and to save computational time here, we should move calculations to the create_summary_stats.r code
+  
+  # NSM: our setup for ctsMeans has rows for Site/Grade (and soon year) combinations, and columns for all variables that are summarized
   
   getPlotData <- function(graphVal, site){
       if (graphVal=="RaceEth")    {PlotData <- as.data.frame(prop.table(table(fAnyYss, fRace),1))}
@@ -85,7 +88,7 @@
       if (site=="All") {
         return(PlotData)
         } else {
-          propTableFun <- function(PlotData,varName,site){ # NSM: Why is this function defined within the other function?
+          propTableFun <- function(PlotData, varName, site){ # NSM: Why is this function defined within the other function?
             df <- data.frame(cbind(site, data.frame(prop.table(table(varName[fYssSite==site])))))
             colnames(df) <- colnames(PlotData)
             PlotData <- rbind(PlotData, df)
@@ -228,12 +231,6 @@
         print(Plot_Nbhd)
       dev.off()
     
-      
-    
-   
-      
-  
-    
   
 #-------------------------------------------#
 #-------------------------------------------#
@@ -354,49 +351,15 @@
 } # End of Descriptive Graph Generation
   
 
-#--------------------------#
-#--------------------------#
-### Regression Estimates ###
-#--------------------------#
-#--------------------------#
-
-if (1 == runRegs) {
-  depVarList <- c("Pct_Attend", "mathss", "readss") #, "bOnTrack", "bHsGrad") ... we don't yet have enough HS-aged youth participating in programming in linked data to be able to run onTrack and high school graduation analyses
-    depVarNames <- c("School Attendance", "Math Score", "Reading Score") #, "On-Track Status", "HS Graduated")
-    depVarYLabs <- c("Sch Attendance, % Units", "Scale Score Units", "Scale Score Units") #, "Impact on Prob of Being On-Track", "Impact on HS Graduation")
-  regVars <- c("bLunch_F", "bLunch_R", "fRace", "Female", "fGradeLvl")
-  TrtVars <- c("UsedYss", "fShortSite") # 
-  thinData <- myData[, c(depVarList, depVarList %&% "_pre", regVars, TrtVars)]
-  thinData$fShortSite <- relevel(thinData$fShortSite, ref="None of the Above")
+#-------------------------------#
+#-------------------------------#
+### Plot Regression Estimates ###
+#-------------------------------#
+#-------------------------------#
   
-  RunRegs <- function(useData, myDepVarList, myTrtVars, suffix){
-    for (depVar in myDepVarList){
-  
-      for (trtVar in TrtVars) {      
-        
-        print("Running depvar " %&% depVar %&% ", and trtVar " %&% trtVar)
-        
-        sGain <- paste0(depVar, " - ", depVar, "_pre")
-        regData <- useData[!is.na(useData[,depVar]), ]
-        adjReg  <- summary(lm(as.formula(depVar   %&% " ~ bLunch_F + bLunch_R + fRace + Female + fGradeLvl + mathss_pre + readss_pre + Pct_Attend_pre + " %&% trtVar), data = regData))
-        
-        if (trtVar == "UsedYss") {
-          print("  Generating plot for aggregate effects")
-          rawReg  <- summary(lm(as.formula(depVar   %&% " ~ " %&% trtVar), data = regData))
-          gainReg <- summary(lm(as.formula(I(sGain) %&% " ~ " %&% trtVar), data = regData))
-          preReg  <- summary(lm(as.formula(paste0(depVar, " ~ ", trtVar, " + ", depVar, "_pre")), data = regData))
-          Eff <- data.frame(rbind( rawReg$coeff["UsedYss", c("Estimate", "Std. Error")],
-                                  gainReg$coeff["UsedYss", c("Estimate", "Std. Error")],
-                                   preReg$coeff["UsedYss", c("Estimate", "Std. Error")],
-                                   adjReg$coeff["UsedYss", c("Estimate", "Std. Error")]))
-          rownames(Eff) <- c("1: Raw\nDiff", "2: Gain\nCalc", "3: Adj for\nLag", "4: Fully\nAdj")
-          colnames(Eff) <- c("b", "se")
-          Eff$myX <- rownames(Eff)
-          
-          Eff$ll <- Eff$b - 1.96*Eff$se
-          Eff$ul <- Eff$b + 1.96*Eff$se
-          
-          png(file = paste(myOutDir, "Impact_", depVar, "_", trtVar, suffix, ".png", sep = ""), res = myRes, width = myWidth, height = myHeight)
+  if (runRegGraphs == 1) {
+  # Plot across models
+  png(file = paste(myOutDir, "Impact_", depVar, "_", trtVar, suffix, ".png", sep = ""), res = myRes, width = myWidth, height = myHeight)
             Plot_RegAll <- ggplot(data=Eff, aes(x=myX, y=b, fill=myX)) +
               geom_bar(stat="identity", position="dodge") +
               geom_errorbar(aes(ymin=ll, ymax=ul), width=0.1, position=position_dodge(0.1)) +
@@ -408,64 +371,9 @@ if (1 == runRegs) {
             print(Plot_RegAll)
             rm(Eff)
           dev.off()
-          
-          ### Ad hoc generation of a graph for a blog post
-          EffSub <- data.frame(rbind(preReg$coeff["UsedYss", c("Estimate", "Std. Error")],
-                                  adjReg$coeff["UsedYss", c("Estimate", "Std. Error")]))
-          rownames(EffSub) <- c("1: Separating\nOnly Prior\nScore", "2: Separating\nAll Observed\nDifferences")
-          colnames(EffSub) <- c("b", "se")
-          EffSub$myX <- rownames(EffSub)
-          
-          addLab <- ""
-          if (depVar %in% c("mathss", "readss")) {
-            gain <- mean(myData[,substr(depVar, 1, 4) %&% "gain"], na.rm=T)
-            EffSub$b  <- EffSub$b  / gain
-            EffSub$se <- EffSub$se / gain
-            addLab <- "% Year's Change in\n"
-          }
-          
-          # Create confidence interval
-          EffSub$ll <- EffSub$b - 1.96*EffSub$se
-          EffSub$ul <- EffSub$b + 1.96*EffSub$se
-          
-          # Plot
-          png(file = paste(myOutDir, "ImpactSubset_", depVar, "_", trtVar, suffix, ".png", sep = ""), res = myRes, width = myWidth, height = myHeight)
-            Plot_RegAll <- ggplot(data=EffSub, aes(x=myX, y=b, fill=myX)) +
-              geom_bar(stat="identity", position="dodge") +
-              geom_errorbar(aes(ymin=ll, ymax=ul), width=0.1, position=position_dodge(0.1)) +
-              ggtitle("Remaining Association\nwith " %&% depVarNames[depVarList == depVar]) +
-              ylab(addLab %&% depVarYLabs[depVarList == depVar]) + scale_y_continuous(labels = percent) +
-              theme(axis.title.x=element_blank(), axis.title.y=element_text(size = 8)) +
-              guides(fill=guide_legend(title=NULL)) + scale_fill_hue(h=c(100,200), l=40) +
-              theme(legend.position="none")
-            print(Plot_RegAll)
-            #rm(EffSub)
-          dev.off()
-          
-        } else {
-          print("  Generating plot by Site")
-          
-          # Identify sites with 10 or more observations
-          rowsInReg <- rownames(regData) %in% names(adjReg$residuals)
-          SiteNs_Reg <- table(regData$fShortSite[rowsInReg])
-          SiteNames_NGe10 <- names(sort(SiteNs_Reg[SiteNs_Reg >= 10]))
-          SiteNames_NLt10 <- names(sort(SiteNs_Reg[SiteNs_Reg <  10]))
-          cSiteNames_NLt10 <- paste(SiteNames_NLt10, collapse = ", ")
-          print("Sites " %&% cSiteNames_NLt10 %&% " are excluded due to fewer than 10 valid observations.")
-          
-          plotEff <- as.data.frame(adjReg$coeff[grep(trtVar, rownames(adjReg$coeff)), ])
-          plotEff$myX <- sub(trtVar, "", rownames(plotEff))
-          plotEff <- plotEff[plotEff$myX %in% SiteNames_NGe10,]
-          
-          colnames(plotEff) <- c("b", "se", "t", "p", "myX")
-          
-          estOrder <- order(plotEff$b)
-          plotEff$myX <- factor(plotEff$myX, levels = plotEff$myX[estOrder])
-          plotEff <- plotEff[estOrder,]
-          plotEff$ll <- plotEff$b - 1.96*plotEff$se
-          plotEff$ul <- plotEff$b + 1.96*plotEff$se
-          
-          png(file = paste(myOutDir, "Impact_", depVar, "_", trtVar, suffix, ".png", sep=""), res = myRes, width = myWidth, height = myHeight)
+  
+  # Plot across sites
+           png(file = paste(myOutDir, "Impact_", depVar, "_", trtVar, suffix, ".png", sep=""), res = myRes, width = myWidth, height = myHeight)
             Plot_RegSite <- ggplot(data=plotEff, aes(x=myX, y=b, fill=myX)) +
               geom_bar(stat="identity", position="dodge") +
               geom_errorbar(aes(ymin=ll, ymax=ul), width=0.1, position=position_dodge(0.1)) +
@@ -477,17 +385,4 @@ if (1 == runRegs) {
               xlab("Site Name")
             print(Plot_RegSite)
           dev.off()
-        }
-        
-      } # End of loop across "All treament" versus "by Site" analysis
-      
-    } # End of loop across dependent variables
-    
-  } # End of the RunRegs function definition
-    
-  RunRegs(useData=thinData, myDepVarList = depVarList, myTrtVars = TrtVars, suffix="")
-
-} # End of Regression Analysis
-  
-  
-  
+  }
