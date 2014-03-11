@@ -52,6 +52,8 @@
   }
 
   load(paste0(dataPath,"ctsMeans",scramInd,".Rda"))
+  ctsMeans <- ctsMeansLong
+  rm(ctsMeansLong)
   
 #---------------------------------------#
 #---------------------------------------#
@@ -104,9 +106,9 @@
     
     # Output plot to saved file
     
-        myGraphOut <- paste0(myOutDir,orgname,"/",sitename,"/")
-        print(myGraphOut)
-        ggsave(filename = paste0(myGraphOut, "CpsVsOrg",VarList[1],".png"), plot = plot, dpi = myRes, width = myWidth, height = myHeight)
+    #    myGraphOut <- paste0(myOutDir,orgname,"/",sitename,"/")
+    #    print(myGraphOut)
+    #    ggsave(filename = paste0(myGraphOut, "CpsVsOrg",VarList[1],".png"), plot = plot, dpi = myRes, width = myWidth, height = myHeight)
     
     # Return plot - this displays the plot once the function has run
     
@@ -165,11 +167,11 @@
 if (1==runDescGraphs) {
   
   # ERW: This is the general idea - it's working.
-  lapply(varlists, makePlot, orgname = "YMCA")
+  listtest <- lapply(varlists, makePlot, orgname = "YMCA")
   
   #ERW: But to add more inputs, we need mapply, and THIS ISN'T WORKING - ONCE IT IS, ITERATION SHOULD BE ALL SET.  
   # This is with just varlists and xnames specified, but will include titles, etc.
-  mapply(makePlot, VarList = varlists, xnames = xnamelists, orgname = "YMCA")
+  mapplyprobs <- mapply(makePlot, VarList = varlists, xnames = xnamelists, orgname = "YMCA")
   iterate <- function(orgname,sitename) <- {
     mapply(makePlot, VarList = varlists, xnames = xnamelists, orgname = orgname, sitename = sitename)
   }

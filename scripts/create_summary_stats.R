@@ -325,9 +325,9 @@
   ctsMeans <- rbind(ctsMeansLong, ctsMean_bySitePeer)
   
   if (useScrambledData==1) { 
-    save(ctsMeans,    file = paste0(dataPath,"ctsMeans","_DEMO.Rda"))
+    save(ctsMeansLong,    file = paste0(dataPath,"ctsMeans","_DEMO.Rda"))
   } else {  
-    save(ctsMeans,    file = paste0(dataPath,"ctsMeans.Rda"))
+    save(ctsMeansLong,    file = paste0(dataPath,"ctsMeans.Rda"))
     save(myData, file = paste0(dataPath, "subset_CpsYss_PP13.Rda"))
   }
 
