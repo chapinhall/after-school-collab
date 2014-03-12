@@ -7,26 +7,31 @@
 #------------------------------------------------#
 #------------------------------------------------#
 
-## NOTE -- THIS WAS FORKED FROM THE "anayze-and-report.r" file
-
 ## Set up workspace and designate/update file locations
+
+myDir <- "C:/Users/Emily/Desktop"
 
   rm(list=ls())
   #myDir <- "/projects/Integrated_Evaluation_Youth_Support_Services/"
-  myDir <- "H:/Integrated Evaluation Project for YSS Providers/"
+  #myDir <- "H:/Integrated Evaluation Project for YSS Providers/"
   setwd(myDir)
-  dataPath <- "./data/preprocessed-data/" # File path to locate and save data
+  #dataPath <- "./data/preprocessed-data/" # File path to locate and save data
 
-  useScrambledData <- 0
+  useScrambledData <- 1
   runDescGraphs    <- 0
   runRegGraphs     <- 0
 
   library(ggplot2)
   library(scales)
 
-  YMCAfill  <- c("#ED1C24", "#F47920", "#92278F") # red, orange, and purple - hex codes from YMCA standards (http://marketingfrankenstein.weebly.com/uploads/6/9/2/0/6920095/graphic_standards_for_3rd_parties.pdf)
+  YMCAfill  <- c("#ED1C24", "#92278F", "#0089D0", "#F47920", "01A490") # hex codes from YMCA standards (http://marketingfrankenstein.weebly.com/uploads/6/9/2/0/6920095/graphic_standards_for_3rd_parties.pdf)
   ASMfill <- c("#3F227C", "#A4B635", "#211F21") # purple, lime, and grey - hex codes from ASM website colors
-  
+  OrgvOrgfill <- c("#000053", "#8F162B", "#A0A1A3", "#DA5F45")
+
+  Alphafill  <- c("#ED1C24", "#92278F", "#0089D0", "#F47920", "#01A490") 
+  Betafill <- c("#3F227C", "#A4B635", "#211F21") # purple, lime, and grey - hex codes from ASM website colors
+
+
   # Other old fills we could use
   ##myfill1 <- c("#CC3300", "#660000") #orange/red and dark red ... NSM - these are good YMCA colors
   ##myfill2 <- c("#CC6600", "#480000") #darker orange and maroon
@@ -51,9 +56,15 @@
       scramInd <- ""
   }
 
-  load(paste0(dataPath,"ctsMeans",scramInd,".Rda"))
+  load("F:/ctsMeans_DEMO.Rda")
+#  load(paste0(dataPath,"ctsMeans",scramInd,".Rda"))
   ctsMeans <- ctsMeansLong
   rm(ctsMeansLong)
+
+  ctsMeans$Site <- paste0("Site ", ctsMeans$Site)
+  ctsMeans$Site[ctsMeans$Site=="Site All Alpha Sites"] <- "All Alpha Sites"  
+  ctsMeans$Site[ctsMeans$Site=="Site All Beta Sites"] <- "All Beta Sites"  
+  ctsMeans$Site[ctsMeans$Site=="Site Non-Participants"] <- "Non-Participants"  
   
 #---------------------------------------#
 #---------------------------------------#
@@ -64,7 +75,8 @@
 ##### Define general plotting function  ##########
   
   makePlot <- function(
-                VarList, orgname, sitename = "All", grades = c("All Grades"),  # main parameters - restrict data and shape graph
+                VarList, orgnames, sitenames = c("All"), 
+                grades = c("All Grades"), years = c("All Years"),              # main parameters - restrict data and shape graph
                 title = '', ylab = '', xlab = '',                              # titles
                 yscaletype = percent,                                          # to see raw means rather than percents, set yscaletype = waiver()
                 xnames = waiver()                                              # vector of variable names in the same order as the variables in varlist
@@ -73,10 +85,19 @@
     # Restrict dataset based on primary parameters
     
         data <- ctsMeans[
-                (ctsMeans$Org %in% c(orgname, "None") & 
-                 ctsMeans$Site %in% c(sitename, paste0("All ",orgname," Sites"), "Non-Participants") & 
+                (ctsMeans$Org %in% c(orgnames, "None") & 
+                 ctsMeans$Site %in% c(sitenames, 
+                                      paste0("All ",orgnames[1]," Sites"),
+                                      paste0("All ",orgnames[2]," Sites"),
+                                      paste0("All ",orgnames[3]," Sites"),
+                                      "Non-Participants") & 
                  ctsMeans$Grade %in% grades &
+                 ctsMeans$Year %in% years &
                  ctsMeans$Variable %in% VarList),]
+    
+    # Convert year to numeric for plots over time
+        
+        if (years[1] != "All Years") {data$Year <- as.numeric(data$Year)}
     
     # Make sure that graph will display variables from L to R in the order specified in VarList
     
@@ -88,22 +109,35 @@
 
     # Define the fill value as a part of the data frame (aes.fill can only equal a variable in the df)
     
-        if (sitename != "All") { data$fill = data$Site } else { data$fill = data$Org } 
+        if (sitenames[1] != "All") { data$fill = data$Site } else { data$fill = data$Org }
+            
     
     # Define the fill to match organization
     
-        useFill <- eval(parse(text = paste0(orgname,"fill")))
-     
+        if (is.na(orgnames[2])) { useFill <- eval(parse(text = paste0(orgnames,"fill"))) 
+          } else { useFill <- OrgvOrgfill }    
+             
     # Create plot
     
-       plot <- ggplot(data=data, aes(x=Variable, y=Mean, fill = fill)) + 
-                geom_bar(stat = 'identity', position = 'dodge', width=0.7) +
-                ggtitle(title) +
-                scale_y_continuous(labels = yscaletype, name = ylab) +
-                scale_x_discrete(name = xlab, labels = xnames) +
-                guides(fill = guide_legend(title = NULL)) + theme(legend.position = 'bottom') +
-                scale_fill_manual(values = useFill)
+      if (years[1] == "All Years") {
+            plot <- ggplot(data=data, aes(x=Variable, y=Mean, fill = fill)) + 
+                    geom_bar(stat = 'identity', position = 'dodge', width=0.7) +
+                    ggtitle(title) +
+                    scale_y_continuous(labels = yscaletype, name = ylab) +
+                    scale_x_discrete(name = xlab, labels = xnames) +
+                    guides(fill = guide_legend(title = NULL)) + theme(legend.position = 'bottom') +
+                    scale_fill_manual(values = useFill)
     
+      } else {
+            plot <- ggplot(data=data, aes(x=Year, y=Mean, color = fill)) +
+                    geom_point() + geom_line() +
+                    scale_color_manual(values = useFill) +
+                    ggtitle(title) +
+                    scale_y_continuous(labels = yscaletype, name = ylab) +
+                    scale_x_continuous(name = xlab) +
+                    guides(color = guide_legend(title = NULL)) + theme(legend.position = 'bottom') 
+      }
+            
     # Output plot to saved file
     
     #    myGraphOut <- paste0(myOutDir,orgname,"/",sitename,"/")
@@ -119,9 +153,24 @@
   
   # Samples of function in action - this code can be removed eventually
   
-  makePlot("bLunch_FR", orgname = "YMCA", title = "% Free/Reduced Price Lunch", ylab = 'Proportion on Free/Reduced Price Lunch')
-  makePlot(title = 'Math Test Scores', VarList = c("mathpl_W","mathpl_B","mathpl_M","mathpl_E"), xnames = c("Warning","Below","Meets","Exceeds"), orgname="YMCA", sitename = "South Side YMCA")
-  
+  # Continuous Plot - for one org, multiple orgs, one site, and multiple sites
+  makePlot("bLunch_FR", orgnames = "Alpha", title = "% Free/Reduced Price Lunch", ylab = 'Proportion on Free/Reduced Price Lunch')
+  makePlot("bLunch_FR", orgnames = c("Alpha", "Beta"), title = "% Free/Reduced Price Lunch", ylab = 'Proportion on Free/Reduced Price Lunch')
+  makePlot("bLunch_FR", orgnames = "Beta", sitenames = "Site R", title = "% Free/Reduced Price Lunch", ylab = 'Proportion on Free/Reduced Price Lunch')
+  makePlot("bLunch_FR", orgnames = "Alpha", sitenames = c("Site A","Site B","Site C"), title = "% Free/Reduced Price Lunch", ylab = 'Proportion on Free/Reduced Price Lunch')
+    # Note that we'll need a different plot format for more than 3 or so sites - really need labelled axis rather than relying on fill
+
+  # Categorical Plot - same four options
+  makePlot(title = 'Math Test Scores', VarList = c("mathpl_W","mathpl_B","mathpl_M","mathpl_E"), xnames = c("Warning","Below","Meets","Exceeds"), orgnames="Alpha")
+  makePlot(title = 'Math Test Scores', VarList = c("mathpl_W","mathpl_B","mathpl_M","mathpl_E"), xnames = c("Warning","Below","Meets","Exceeds"), orgnames=c("Alpha", "Beta"))
+  makePlot(title = 'Math Test Scores', VarList = c("mathpl_W","mathpl_B","mathpl_M","mathpl_E"), xnames = c("Warning","Below","Meets","Exceeds"), orgnames=c("Beta"), sitenames = "Site P")
+  makePlot(title = 'Math Test Scores', VarList = c("mathpl_W","mathpl_B","mathpl_M","mathpl_E"), xnames = c("Warning","Below","Meets","Exceeds"), orgnames=c("Alpha"), sitenames = c("Site A", "Site B", "Site C"))
+
+  # Plotting Over Time
+  makePlot("bLunch_FR", orgnames = "Alpha", title = "% Free/Reduced Price Lunch", ylab = 'Proportion on Free/Reduced Price Lunch', years = c("2008","2009","2010","2011","2012"))    
+  makePlot("bLunch_FR", orgnames = c("Alpha", "Beta"), title = "% Free/Reduced Price Lunch", ylab = 'Proportion on Free/Reduced Price Lunch', years = c("2008","2009","2010","2011","2012"))
+  makePlot("bLunch_FR", orgnames = "Beta", sitenames = "Site R", title = "% Free/Reduced Price Lunch", ylab = 'Proportion on Free/Reduced Price Lunch', years = c("2008","2009","2010","2011","2012"))
+  makePlot("bLunch_FR", orgnames = "Alpha", sitenames = c("Site A","Site B","Site C"), title = "% Free/Reduced Price Lunch", ylab = 'Proportion on Free/Reduced Price Lunch', years = c("2008","2009","2010","2011","2012"))
 
   
 ######  Define Variable-Specific Criteria #########
