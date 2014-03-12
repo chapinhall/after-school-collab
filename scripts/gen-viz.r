@@ -9,7 +9,7 @@
 
 ## Set up workspace and designate/update file locations
 
-myDir <- "C:/Users/Emily/Desktop"
+myDir <- "C:/Users/Emily/Desktop/"
 
   rm(list=ls())
   #myDir <- "/projects/Integrated_Evaluation_Youth_Support_Services/"
@@ -127,7 +127,7 @@ myDir <- "C:/Users/Emily/Desktop"
                     scale_x_discrete(name = xlab, labels = xnames) +
                     guides(fill = guide_legend(title = NULL)) + theme(legend.position = 'bottom') +
                     scale_fill_manual(values = useFill)
-    
+            timeind <- ""    
       } else {
             plot <- ggplot(data=data, aes(x=Year, y=Mean, color = fill)) +
                     geom_point() + geom_line() +
@@ -136,13 +136,27 @@ myDir <- "C:/Users/Emily/Desktop"
                     scale_y_continuous(labels = yscaletype, name = ylab) +
                     scale_x_continuous(name = xlab) +
                     guides(color = guide_legend(title = NULL)) + theme(legend.position = 'bottom') 
+            timeind <- "OverTime"  
       }
             
     # Output plot to saved file
     
-    #    myGraphOut <- paste0(myOutDir,orgname,"/",sitename,"/")
-    #    print(myGraphOut)
-    #    ggsave(filename = paste0(myGraphOut, "CpsVsOrg",VarList[1],".png"), plot = plot, dpi = myRes, width = myWidth, height = myHeight)
+        if (is.na(orgnames[2])) {
+            if (is.na(sitenames[2])) {
+              myGraphOut <- paste0(myOutDir,orgnames[1],"/",sitenames[1],"/")
+              dir.create(myGraphOut, showWarnings = FALSE)
+              ggsave(filename = paste0(myGraphOut, "CpsvOrg_",VarList[1],timeind,".png"), plot = plot, dpi = myRes, width = myWidth, height = myHeight) 
+            } else {
+              myGraphOut <- paste0(myOutDir,orgnames[1],"/SitevSite/")
+              dir.create(myGraphOut, showWarnings = FALSE)
+              ggsave(filename = paste0(myGraphOut, "SitevSite_",VarList[1],timeind,".png"), plot = plot, dpi = myRes, width = myWidth, height = myHeight) 
+            }
+        } else {
+          myGraphOut <- paste0(myOutDir,"OrgvOrg/")
+          dir.create(myGraphOut, showWarnings = FALSE)
+          ggsave(filename = paste0(myGraphOut,VarList[1],timeind,".png"), plot = plot, dpi = myRes, width = myWidth, height = myHeight) 
+        }
+                    
     
     # Return plot - this displays the plot once the function has run
     
@@ -242,13 +256,9 @@ if (1==runDescGraphs) {
     
   # After that: 
       #incorporate school based peers into graphing utility
-      #incorporate multiple years and allow for iteration over years
       #introduce order var (i.e. order in which bars display - Org, Non-Org, Site...etc.) - see old code samples below
   
-  # Also:
-      # add org to org comparisons
-      # year to year comparisons
-    #For these, need to create fake data that simulates multiple orgs/multiple years (before ASM is ready)
+  # Add mass code generation that generates year over year, org over org, site over site plots?
   
   
   
