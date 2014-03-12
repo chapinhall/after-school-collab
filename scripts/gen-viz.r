@@ -78,7 +78,7 @@ myDir <- "C:/Users/Emily/Desktop/"
                 VarList, orgnames, sitenames = c("All"), 
                 grades = c("All Grades"), years = c("All Years"),              # main parameters - restrict data and shape graph
                 title = '', ylab = '', xlab = '',                              # titles
-                yscaletype = percent,                                          # to see raw means rather than percents, set yscaletype = waiver()
+                yscaletype = "percent",                                          # to see raw means rather than percents, set yscaletype = waiver()
                 xnames = waiver()                                              # vector of variable names in the same order as the variables in varlist
                       ){
     
@@ -123,19 +123,21 @@ myDir <- "C:/Users/Emily/Desktop/"
             plot <- ggplot(data=data, aes(x=Variable, y=Mean, fill = fill)) + 
                     geom_bar(stat = 'identity', position = 'dodge', width=0.7) +
                     ggtitle(title) +
-                    scale_y_continuous(labels = yscaletype, name = ylab) +
+                    scale_y_continuous(labels = eval(parse(text = yscaletype)), name = ylab) +
                     scale_x_discrete(name = xlab, labels = xnames) +
                     guides(fill = guide_legend(title = NULL)) + theme(legend.position = 'bottom') +
-                    scale_fill_manual(values = useFill)
+                    scale_fill_manual(values = useFill) +
+                    theme(axis.title.y = element_text(size = 8))
             timeind <- ""    
       } else {
             plot <- ggplot(data=data, aes(x=Year, y=Mean, color = fill)) +
                     geom_point() + geom_line() +
                     scale_color_manual(values = useFill) +
                     ggtitle(title) +
-                    scale_y_continuous(labels = yscaletype, name = ylab) +
+                    scale_y_continuous(labels = eval(parse(text = yscaletype)), name = ylab) +
                     scale_x_continuous(name = xlab) +
-                    guides(color = guide_legend(title = NULL)) + theme(legend.position = 'bottom') 
+                    guides(color = guide_legend(title = NULL)) + theme(legend.position = 'bottom') +
+                    theme(axis.title.y = element_text(size = 8))
             timeind <- "OverTime"  
       }
             
@@ -208,6 +210,8 @@ myDir <- "C:/Users/Emily/Desktop/"
                           "7","8","9","10", "11","12","Score Gain - Math","Warning","Below","Meets","Exceeds","Meets/Exceeds",
                           "Math Scores","Percent Attending","Score Gain - Reading","Warning","Below","Meets","Exceeds",
                           "Meets/Exceeds","Reading Scores")
+
+
   # Other data to add to this data frame - titles, xlabels, ylabels.  
   # Also values for yscaletype (= waiver()) for scores and other graphs that shouldn't be graphed as percents.
   
@@ -221,45 +225,74 @@ myDir <- "C:/Users/Emily/Desktop/"
   vargroups <- levels(as.factor(metadata$VarGroup))
   varlists <- sapply(vargroups, createlists, tobegrouped = metadata$Vars)
   xnamelists <- sapply(vargroups, createlists, tobegrouped = metadata$VarXNames)
-  
-  
-  
+
+  titlelist <- c("% Free/Reduced Price Lunch",
+                 "Distribution of Grade Levels",
+                 "Average Test Score Gain - Math",
+                 "Tested Proficiency\nLevels - Math",
+                 "% Meets/Exceeds Standards\nfor Math Proficiency",
+                 "Math Scores by Grade",
+                 "Average School Attendance",
+                 "Comparison of Race/Ethnicity",
+                 "Average Test Score Gain - Reading",
+                 "Tested Proficiency\nLevels - Reading",
+                 "% Meets/Exceeds Standards\nfor Reading Proficiency",
+                 "Reading Scores by Grade")
+
+  ylablist <- c("Proportion on Free/Reduced Price Lunch",
+                "% in Each Grade",
+                "Average Scale Score Gain",
+                "% in Performance Category", 
+                "% Meets/Exceeds",
+                "Average Test Scale Score",
+                "Average Rate of School Attendance",
+                "% in Each Race/Eth Group",
+                "Average Scale Score Gain",
+                "% in Performance Category",
+                "% Meets/Exceeds",
+                "Average Test Scale Score")
+                
+
+  yscalelist <- rep("percent", 12)
+  yscalelist[c(3,6,9,12)] <- "waiver()"
+
+
+
 #######  Generate Graphs Iteratively ##############
   
   
 if (1==runDescGraphs) {
   
-  # ERW: This is the general idea - it's working.
-  listtest <- lapply(varlists, makePlot, orgname = "YMCA")
+  # Demonstrating how these graphs can be generated for single organization
+  # Note that mapply does not generate graphs locally, but the ggsave still executes.
+   #mapplyprobs <- mapply(makePlot, VarList = varlists, 
+   #                                xnames = xnamelists, 
+   #                                title = titlelist,
+   #                                ylab = ylablist, 
+   #                                yscaletype = yscalelist, orgname = "Alpha")
   
-  #ERW: But to add more inputs, we need mapply, and THIS ISN'T WORKING - ONCE IT IS, ITERATION SHOULD BE ALL SET.  
-  # This is with just varlists and xnames specified, but will include titles, etc.
-  mapplyprobs <- mapply(makePlot, VarList = varlists, xnames = xnamelists, orgname = "YMCA")
-  iterate <- function(orgname,sitename) <- {
-    mapply(makePlot, VarList = varlists, xnames = xnamelists, orgname = orgname, sitename = sitename)
+  iterate <- function(orgname, sitename = "All") {
+    mapply(makePlot, VarList = varlists, xnames = xnamelists, title = titlelist, ylab = ylablist,
+           yscaletype = yscalelist, orgnames = orgname, sitenames = sitename)
   }
   
-  #Once this is working, can iterate across orgs and sites.
-    
   orgs  <- levels(as.factor(ctsMeans$Org))
+  orgs  <- orgs[orgs != "None"]
     
-  orgGraph <- (orgname) {
+  orgGraph <- function(orgname) {
     sites <- unique(ctsMeans$Site[ctsMeans$Org == orgname])
     lapply(sites, iterate, orgname = orgname)
   }
 
-  lapply(orgs, OrgGraph)
+  lapply(orgs, orgGraph)
   
 
   
-  # Next step: Fix mapply.  
-    
-  # After that: 
+  # Next steps: 
       #incorporate school based peers into graphing utility
+      #small tweaks to these graphs (see about combining test scores, break things out across grades, etc.)
       #introduce order var (i.e. order in which bars display - Org, Non-Org, Site...etc.) - see old code samples below
-  
-  # Add mass code generation that generates year over year, org over org, site over site plots?
-  
+      #think about what kind of site v site, org v org, and year v year plots should be standard and code those
   
   
   #-------------------------------------------------------
