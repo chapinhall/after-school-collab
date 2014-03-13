@@ -17,7 +17,7 @@
   dataPath <- "./data/preprocessed-data/" # File path to locate and save data
 
   useScrambledData <- 1
-  runDescGraphs    <- 0
+  runDescGraphs    <- 1
   runRegGraphs     <- 0
 
   library(ggplot2)
@@ -280,7 +280,7 @@ if (1==runDescGraphs) {
 
   lapply(orgs, orgGraph)
   
-
+}
   
   # Next steps: 
       #incorporate school based peers into graphing utility
