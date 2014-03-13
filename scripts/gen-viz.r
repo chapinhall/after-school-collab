@@ -9,13 +9,12 @@
 
 ## Set up workspace and designate/update file locations
 
-myDir <- "C:/Users/Emily/Desktop/"
 
   rm(list=ls())
   #myDir <- "/projects/Integrated_Evaluation_Youth_Support_Services/"
-  #myDir <- "H:/Integrated Evaluation Project for YSS Providers/"
+  myDir <- "H:/Integrated Evaluation Project for YSS Providers/"
   setwd(myDir)
-  #dataPath <- "./data/preprocessed-data/" # File path to locate and save data
+  dataPath <- "./data/preprocessed-data/" # File path to locate and save data
 
   useScrambledData <- 1
   runDescGraphs    <- 0
@@ -29,7 +28,7 @@ myDir <- "C:/Users/Emily/Desktop/"
   OrgvOrgfill <- c("#000053", "#8F162B", "#A0A1A3", "#DA5F45")
 
   Alphafill  <- c("#ED1C24", "#92278F", "#0089D0", "#F47920", "#01A490") 
-  Betafill <- c("#3F227C", "#A4B635", "#211F21") # purple, lime, and grey - hex codes from ASM website colors
+  Betafill <- c("#3F227C", "#A4B635", "#211F21")
 
 
   # Other old fills we could use
@@ -56,8 +55,7 @@ myDir <- "C:/Users/Emily/Desktop/"
       scramInd <- ""
   }
 
-  load("F:/ctsMeans_DEMO.Rda")
-#  load(paste0(dataPath,"ctsMeans",scramInd,".Rda"))
+  load(paste0(dataPath,"ctsMeans",scramInd,".Rda"))
   ctsMeans <- ctsMeansLong
   rm(ctsMeansLong)
 
@@ -212,10 +210,6 @@ myDir <- "C:/Users/Emily/Desktop/"
                           "Meets/Exceeds","Reading Scores")
 
 
-  # Other data to add to this data frame - titles, xlabels, ylabels.  
-  # Also values for yscaletype (= waiver()) for scores and other graphs that shouldn't be graphed as percents.
-  
-  
   # For categorical graphs, need to create lists of variables and variable labels that go together on one graph
   # These have already been defined above by VarGroup
   createlists <- function(group, tobegrouped) {
@@ -290,6 +284,8 @@ if (1==runDescGraphs) {
   
   # Next steps: 
       #incorporate school based peers into graphing utility
+      #streamline data generation to make one script for demo data and one for non-demo
+      #clean out unneeded scripts from GH
       #small tweaks to these graphs (see about combining test scores, break things out across grades, etc.)
       #introduce order var (i.e. order in which bars display - Org, Non-Org, Site...etc.) - see old code samples below
       #think about what kind of site v site, org v org, and year v year plots should be standard and code those
