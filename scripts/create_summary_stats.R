@@ -30,38 +30,25 @@
     load(paste0(dataPath,"Scram.Rda"))
     myData <- Scram
     rm(Scram)
-    myGraphOut <- paste0(myDir,"/demos/") 
   } else {
-  	load("./data/preprocessed-data/CpsYss_PP13.Rda")
-  	cNames <- colnames(CpsYss_PP13)
-  	keepVars <- c("sid", "SchYear", "Stud_Tract", "schlid", "fGradeLvl", "grade_level",
-                "Female", "disab", "fRace", grep("bRace", cNames, value=T), grep("bLunch", cNames, value=T),
-                "readss", "mathss", "readgain", "mathgain", "readpl", "mathpl", "mathpl_ME", "readpl_ME", "mathss_pre", "readss_pre",
-                "Pct_Attend", "Pct_Attend_pre", "bOnTrack", "bHsGrad",
-                "Stud_X", "Stud_Y", grep("Tract_", cNames, value=T), "Stud_CcaNum", "Stud_CcaName",
-                "fYssType", "fYssSite", "fAnyYss", "UsedYss") #"Pct_Absent", "Pct_Absent_pre",
-      myData <- CpsYss_PP13[, keepVars]
-	  myGraphOut <- paste0(myDir,"/output/")
-      rm(CpsYss_PP13)} 
+  	load("./data/preprocessed-data/CpsAcsYss_PP13.Rda")
+    myData <- CpsAcsYss_PP13
+    rm(CpsAcsYss_PP13)
+  } 
 
-## XXX Short term edits to make data set match eventual result (IMM is working on data prep)
+## XXX Short term edits to make data set match eventual result -- NSM: this should be handled by bringing in the program-by-time data construction coming out of combine-data.r
 ## NOTE THAT THESE NEED TO BE DIFFERENT WITH SCRAMBLED DATA.
   myData$Org[myData$fAnyYss=='YMCA'] <- "YMCA"
   myData$Org[is.na(myData$Org)] <- "None"
   myData$Site[myData$fAnyYss=='YMCA'] <- as.character(myData$fYssSite[myData$fAnyYss=='YMCA'])
-  attach(myData)  
+  #attach(myData)  
   
-  
+#-------------------------------
 ## Select variables to summarize
+#-------------------------------
 
-  cNames <- colnames(myData)
-  ctsVars <- c("mathss", "readss", "mathgain", "readgain", "mathpl_ME", "readpl_ME", "Pct_Attend",
-               grep("bRace",  cNames, value=T),
-               grep("bLunch", cNames, value=T),
-               grep("Tract_", cNames, value=T))  
-  catVars <- c("mathpl", "readpl", "fGradeLvl")
-  
   # Create dummy variables of catVar vlaues to be treated as continuous vars
+  catVars <- c("mathpl", "readpl", "fGradeLvl")
   for (var in catVars) {
     cVar <- as.character(get(var))
     for(val in unique(cVar)){
@@ -72,31 +59,33 @@
       }
     }
   } # XXX There's likely a more elegant way to do this. Note that model.matrix(~0+var) drops observations with NAs, returning a vector of shorter length (which, at this stage, we don't want)
-
-
-  
-## Before calculating summary statistics, create a reduced dataset that includes only the necessary variables
   
   cNames <- colnames(myData)
-  calcVars <- c("sid", "Org", "Site", "fGradeLvl", "SchYear", "schlid","mathss", "readss", "mathgain", "readgain", "Pct_Attend",
+  subVars <- c("sid", "Org", "Site", "fGradeLvl", "fGradeGrp_K5_68_HS", "SchYear", "schlid","mathss", "readss", "mathgain", "readgain", "Pct_Attend", "bOnTrack", "bHsGrad",
                 grep("bRace",      cNames, value=T),
                 grep("bLunch",     cNames, value=T),
                 grep("Tract_",     cNames, value=T),
                 grep("fGradeLvl_", cNames, value=T),
                 grep("mathpl_",    cNames, value=T),
                 grep("readpl_",    cNames, value=T)) 
-  calcData <- myData[,calcVars]
-  detach(myData)
+  calcData <- myData[, subVars]
+  #detach(myData)
   
   # Also, remove obs that didn't match to CPS and are NA for basically all the variables we will use for calculations
   calcData <- calcData[!is.na(calcData$schlid),]
   
   ### ERW: We need to look into who these IDs are and how they got mixed into the dataset.  They should theoretically be removed during
-    ## data preparation unless there is a reason to keep them in.  I'm comfortable to drop now since NAs get dropped from all calcs.  But 
-    ## some might have a few values?  How does that happen?  Fundamental question: are these people in the CPS master file?
+  ## data preparation unless there is a reason to keep them in.  I'm comfortable to drop now since NAs get dropped from all calcs.  But 
+  ## some might have a few values?  How does that happen?  Fundamental question: are these people in the CPS master file?
+
+
   
-    
+#------------------------------  
+#------------------------------
 ## Calculate summary statistics
+#------------------------------
+#------------------------------
+  calcData$All <- "All" # This creates a single "category" to allow us to specify an "all-in" calculation rather than a subset
   attach(calcData)
   
   meanVars <- c("mathss", "readss", "mathgain", "readgain", "Pct_Attend",
@@ -107,32 +96,17 @@
                 grep("mathpl_",   cNames, value=T),
                 grep("readpl_",   cNames, value=T)) 
   
-  ctsMean_byOrg     <- aggregate(calcData[, meanVars], list(Org                  ), mean, na.rm = T)
-  ctsMean_bySite    <- aggregate(calcData[, meanVars], list(Org, Site            ), mean, na.rm = T)
-  ctsMean_byOrgGr   <- aggregate(calcData[, meanVars], list(Org,        fGradeLvl), mean, na.rm = T)
-  ctsMean_bySiteGr  <- aggregate(calcData[, meanVars], list(Org, Site,  fGradeLvl), mean, na.rm = T)
+  ctsMean_byOrg     <- aggregate(calcData[, meanVars], list(Org, All,   All               ), mean, na.rm = T)
+  ctsMean_bySite    <- aggregate(calcData[, meanVars], list(Org, Site,  All               ), mean, na.rm = T)
+  ctsMean_byOrgGr   <- aggregate(calcData[, meanVars], list(Org, All,   fGradeLvl         ), mean, na.rm = T)
+  ctsMean_bySiteGr  <- aggregate(calcData[, meanVars], list(Org, Site,  fGradeLvl         ), mean, na.rm = T)
+  ctsMean_byOrgGrp  <- aggregate(calcData[, meanVars], list(Org, All,   fGradeGrp_K5_68_HS), mean, na.rm = T)
+  ctsMean_bySiteGrp <- aggregate(calcData[, meanVars], list(Org, Site,  fGradeGrp_K5_68_HS), mean, na.rm = T)
   
-  # XXX testing replacement of these calculations with data.table calculations.
-  #cd.dt <- data.table(calcData, key = Org)
-  #ctsMean_byOrg.dt <- cd.dt[, ]
-    
-  colnames(ctsMean_byOrg)[1]    <- "Org" 
-  ctsMean_byOrg$Site[ctsMean_byOrg$Org=="None"] <- "Non-Participants"
-  ctsMean_byOrg$Site[ctsMean_byOrg$Org!="None"] <- paste0("All ",ctsMean_byOrg$Org[ctsMean_byOrg$Org!="None"]," Sites")
-  ctsMean_byOrg$Grade  <- "All Grades"
-  
-  colnames(ctsMean_bySite)[1]   <- "Org"
-  colnames(ctsMean_bySite)[2]   <- "Site"
-  ctsMean_bySite$Grade          <- "All Grades"
-  
-  colnames(ctsMean_byOrgGr)[1]  <- "Org"
-  ctsMean_byOrgGr$Site[ctsMean_byOrgGr$Org=="None"] <- "Non-Participants"
-  ctsMean_byOrgGr$Site[ctsMean_byOrgGr$Org!="None"] <- paste0("All ",ctsMean_byOrgGr$Org[ctsMean_byOrgGr$Org!="None"]," Sites")
-  colnames(ctsMean_byOrgGr)[2]  <- "Grade";
-  
-  colnames(ctsMean_bySiteGr)[1] <- "Org"
-  colnames(ctsMean_bySiteGr)[2] <- "Site"
-  colnames(ctsMean_bySiteGr)[3] <- "Grade"
+  ctsMeans <- rbind(ctsMean_byOrg, ctsMean_bySite, ctsMean_byOrgGr, ctsMean_bySiteGr, ctsMean_byOrgGrp, ctsMean_bySiteGrp)
+  colnames(ctsMeans)[1] <- "Org"
+  colnames(ctsMeans)[2] <- "Site"
+  colnames(ctsMeans)[3] <- "Grades"
   
   
   # ERW: will need to add school year as another unit of analysis
@@ -141,13 +115,6 @@
       #DT <- data.table(ctsMean)
       #ctsMean_alt <- DT[,mean("mathss"), by = fOrg]
 
-  
-  ## Combine summary statistics across different measures into one data frame
-  
-  ctsMeans <- rbind(ctsMean_byOrg, ctsMean_byOrgGr, ctsMean_bySite, ctsMean_bySiteGr)
-  ctsMeans$Org  <- as.character(ctsMeans$Org)
-  ctsMeans$Site <- as.character(ctsMeans$Site)
-  ctsMeans$Year <- "2012-13" # Placeholder before more years are introduced
   
   ## Rotate from wide to long - easier for plotting
   ctsMeansLong <- reshape(ctsMeans, direction = 'long', varying = list(names(ctsMeans)[2:51]), v.names = "Mean", timevar = "Variable", times = (names(ctsMeans)[2:51]))
