@@ -1,7 +1,7 @@
-The Chapin Hall Collaborative of Out-of-School Providers
+The Chapin Hall Collaborative of Youth Support Service Providers
 ========================================================
 
-In cooperation with large non-profit organizations (NPO) and public agencies, Chapin Hall has organized this project to study where and how out-of-school time (OST) programs are positively impacting youth development. Data on youth program enrollment and attendance from NPOs are merged with public agency data through relationships and Master Data Sharing Agreements (MDSAs) built by Chapin Hall. This creates a contextual backdrop for youth academic, social, and behavioral trajectories coming into, during, and following engagement in OST programs.
+In cooperation with large non-profit organizations (NPO) and public agencies, Chapin Hall has organized this project to study where and how youth support service programs (YSS) are positively impacting youth development. Data on youth program enrollment and attendance from NPOs are merged with public agency data through relationships and Master Data Sharing Agreements (MDSAs) built by Chapin Hall. This creates a contextual backdrop for youth academic, social, and behavioral trajectories coming into, during, and following engagement in YSS programs.
 
 ### Current organizational partners are:
 * The YMCA of Metropolitan Chicago
