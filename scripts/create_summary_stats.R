@@ -54,7 +54,7 @@
 #-------------------------------
 
   cNames <- colnames(myData)
-  descVars <- c("mathss", "readss", "mathgain", "readgain", "Pct_Attend", "bOnTrack", "bHsGrad",
+  descVars <- c("mathss", "readss", "mathgain", "readgain", "Pct_Attend", "bOnTrack", "bHsGrad", "bGender_Male", "bGender_Female",
                 grep("bRace",     cNames, value=T),
                 grep("bLunch",    cNames, value=T),
                 grep("Tract_",    cNames, value=T),
@@ -142,10 +142,9 @@
   
   # ERW: will need to add school year as another unit of analysis
   
-  # NSM: Experimenting with data.table, which supposedly has performance advantages
-      #DT <- data.table(stats.org)
-      #ctsMean_alt <- DT[,mean("mathss"), by = fOrg]
+  # NSM: Should experiment with data.table, which supposedly has performance advantages
   
+
 #----------------------------------------------------------------------------
 #----------------------------------------------------------------------------
 ## Calculate average characteristics for representative peers in same schools
@@ -237,10 +236,10 @@
 
     # Attempting an alternate strategy to the mapply(), which doesn't like being returned many data frames
     # Initialize output data frame
+    rl <- runList
     nRuns <- nrow(rl)
     stats.peers <- data.frame(Org = rep("", nRuns), Site = rep("", nRuns), Grade = rep("", nRuns), variable = rep("", nRuns),
                               mean = rep(0.0, nRuns), n = rep(0.0, nRuns), var_mean = rep(0.0, nRuns), se_mean = rep(0.0, nRuns))
-    rl <- runList
     for (i in 1:nRuns){
       
       # Audit values
@@ -273,7 +272,6 @@
       }
     }
 
-  # XXX: Why are there NaN's here?  (And elsewhere in calculated means).  Need to track these anomalies down and check data.
     stats.peers$Site <- paste0(stats.peers$Site, " Sch-Based Peers")
 
     descStats    <- rbind(stats.org[, colnames(stats.peers)], stats.peers)
@@ -282,3 +280,5 @@
     
     save(descStats, file = paste0(dataPath, "descStats.Rda"))
     write.csv(descStats, file = paste0(dataPath, "descStats.csv"))
+
+# XXX: Why are there NaN's here?  (And elsewhere in calculated means).  Need to track these anomalies down and check data.
