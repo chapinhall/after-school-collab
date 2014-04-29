@@ -53,6 +53,15 @@
 ## Select variables to summarize
 #-------------------------------
 
+  # Create individual variance statistics for My Voice, My School variables
+    for (m in c("AcadEng", "Comm", "EmHealth", "Parent", "Peer", "Study", "Safety", "Connect", "Respect")){ # Not yet in the data set... 
+      seVar <- paste0("MVMS_", m, "_se")
+      s2Var <- paste0("MVMS_", m, "_s2")
+      myData[, s2Var] <- myData[, seVar]^2
+      myData <- myData[, -which(colnames(myData) %in% seVar)]
+    }
+
+  # Build a list of descriptive variables
   cNames <- colnames(myData)
   descVars <- c("mathss", "readss", "mathgain", "readgain", "Pct_Attend", "bOnTrack", "bHsGrad", "bGender_Male", "bGender_Female", "bIEP",
                 grep("bRace",     cNames, value=T),
@@ -62,6 +71,7 @@
                 grep("mathpl_",   cNames, value=T),
                 grep("readpl_",   cNames, value=T),
                 grep("MVMS_",     cNames, value=T)) 
+
 
   # Create dummy variables of catVar values to be treated as continuous vars
   catVars <- c("mathpl", "readpl", "fGradeLvl")
