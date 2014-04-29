@@ -54,18 +54,14 @@
 #-------------------------------
 
   cNames <- colnames(myData)
-  descVars <- c("mathss", "readss", "mathgain", "readgain", "Pct_Attend", "bOnTrack", "bHsGrad", "bGender_Male", "bGender_Female",
+  descVars <- c("mathss", "readss", "mathgain", "readgain", "Pct_Attend", "bOnTrack", "bHsGrad", "bGender_Male", "bGender_Female", "bIEP",
                 grep("bRace",     cNames, value=T),
                 grep("bLunch",    cNames, value=T),
                 grep("Tract_",    cNames, value=T),
                 grep("GradeLvl_", cNames, value=T),
                 grep("mathpl_",   cNames, value=T),
                 grep("readpl_",   cNames, value=T),
-                grep("disab_",    cNames, value=T),
-                grep("_AgreeStronglyAgree", cNames, value=T),
-                grep("_MostlyVeryLikeMe",   cNames, value=T),
-                grep("EXPE_",               cNames, value=T),
-                "HWTM_Week_Ge6") 
+                grep("MVMS_",     cNames, value=T)) 
 
   # Create dummy variables of catVar values to be treated as continuous vars
   catVars <- c("mathpl", "readpl", "fGradeLvl")
