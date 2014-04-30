@@ -316,3 +316,35 @@ if (1==runDescGraphs) {
     
     # Set the order for the x-variables to be displayed (releveling aesx)
     d[, aesx] <- factor(d[, aesx], levels = d[order(xOrderVar), aesx])
+	
+	
+	
+  #-------------------------------------------------------
+  #### Old code for other types of visuals
+  #-------------------------------------------------------
+	
+	  # Graph Neighborhood characteristics - this graph is different from above
+      DemNbr <- melt(ctsPlotData[, c("Site", "Tract_Pct_LtHsEd", "Tract_Pct_VacantUnits", "Tract_ViolentCrimes_PerHundr", "Tract_Pct_IncRatKidsLt6_Lt100", "Tract_Pct_NonEnglLangSpokenAtHome")], id=("Site"))
+      
+      DemNbr$VarName[DemNbr$variable=="Tract_Pct_LtHsEd"] <- "Prop'n <\nHS Ed"
+      DemNbr$VarName[DemNbr$variable=="Tract_Pct_VacantUnits"] <- "Prop'n Units\nVacant"
+      DemNbr$VarName[DemNbr$variable=="Tract_ViolentCrimes_PerHundr"] <- "Violent Crimes\nPer 100"
+      DemNbr$VarName[DemNbr$variable=="Tract_Pct_IncRatKidsLt6_Lt100"] <- "Prop'n Kids\nin Poverty"
+      DemNbr$VarName[DemNbr$variable=="Tract_Pct_NonEnglLangSpokenAtHome"] <- "Prop'n No Engl\nat Home"
+      
+      DemNbr$mLabel <- sprintf("%.1f", DemNbr$value)
+      
+      png(file = myGraphOut %&% "CpsVsOrg_Neighborhood_AnyYss.png", res = myRes, width = myWidth, height = myHeight)
+        Plot_Nbhd <- ggplot(data=DemNbr, aes(x=VarName, y = value, fill=Site)) + 
+          geom_bar(stat="identity", position="dodge", width=0.7) +
+          #geom_text(data=DemNbr, aes(x=VarName, y=value, label=mLabel, vjust=-1), position = position_dodge(width=0.7), size=5) +
+          ggtitle("Comparison of Youth Neighborhoods") +
+          theme(legend.position="bottom") +
+          theme(axis.text.x=element_text(size=7)) +
+          theme(axis.title.x=element_blank(), axis.title.y=element_blank()) +
+          scale_fill_manual(values=useFill) +
+          guides(fill=guide_legend(title=NULL))
+        print(Plot_Nbhd)
+      dev.off()
+	  
+	 # For scatterplot of site v. site see code in archived analyze and report file (on H drive in data/Code Archive).
