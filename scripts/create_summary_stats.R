@@ -37,44 +37,41 @@
     myData <- Scram
     rm(Scram)
   } else {
-  	load(dataPath %&% "CpsAcsYss_PP13.Rda")
-    myData <- CpsAcsYss_PP13
-    rm(CpsAcsYss_PP13)
+  	load(dataPath %&% "EnrCpsAcs.Rda")
+    myData <- EnrCpsAcs
+    rm(EnrCpsAcs)
   } 
 
-## XXX Short term edits to make data set match eventual result -- NSM: this should be handled by bringing in the program-by-time data construction coming out of combine-data.r
-## NOTE THAT THESE NEED TO BE DIFFERENT WITH SCRAMBLED DATA.
-  myData$Org[myData$fAnyYss=='YMCA'] <- "YMCA"
-  myData$Org[is.na(myData$Org)] <- "None"
-  myData$Site[myData$fAnyYss=='YMCA'] <- as.character(myData$fShortSite[myData$fAnyYss=='YMCA'])
-  #attach(myData)  
   
 #-------------------------------
 ## Select variables to summarize
 #-------------------------------
 
   # Create individual variance statistics for My Voice, My School variables
-    for (m in c("AcadEng", "Comm", "EmHealth", "Parent", "Peer", "Study", "Safety", "Connect", "Respect")){ # Not yet in the data set... 
-      seVar <- paste0("MVMS_", m, "_se")
-      s2Var <- paste0("MVMS_", m, "_s2")
-      myData[, s2Var] <- myData[, seVar]^2
-      myData <- myData[, -which(colnames(myData) %in% seVar)]
-    }
+#     for (m in c("AcadEng", "Comm", "EmHealth", "Parent", "Peer", "Study", "Safety", "Connect", "Respect")){ # Not yet in the data set... 
+#       seVar <- paste0("MVMS_", m, "_se")
+#       s2Var <- paste0("MVMS_", m, "_s2")
+#       myData[, s2Var] <- myData[, seVar]^2
+#       myData <- myData[, -which(colnames(myData) %in% seVar)]
+#     }
 
   # Build a list of descriptive variables
   cNames <- colnames(myData)
-  descVars <- c("mathss", "readss", "mathgain", "readgain", "Pct_Attend", "bOnTrack", "bHsGrad", "bGender_Male", "bGender_Female", "bIEP",
+  descVars <- c("mathgain", "readgain", "Pct_Attend", "bOnTrack", "bHsGrad", "bGender_Male", "bGender_Female", "bIEP", "iep_test", "lep_test", "lunch_test",
+                grep("isat_",     cNames, value=T),
+                grep("explore_",  cNames, value=T),
+                grep("plan_",     cNames, value=T),
+                grep("psae_",     cNames, value=T),
                 grep("bRace",     cNames, value=T),
                 grep("bLunch",    cNames, value=T),
                 grep("Tract_",    cNames, value=T),
                 grep("GradeLvl_", cNames, value=T),
                 grep("mathpl_",   cNames, value=T),
-                grep("readpl_",   cNames, value=T),
-                grep("MVMS_",     cNames, value=T)) 
-
+                grep("readpl_",   cNames, value=T))
+                #grep("MVMS_",     cNames, value=T)) 
 
   # Create dummy variables of catVar values to be treated as continuous vars
-  catVars <- c("mathpl", "readpl", "fGradeLvl")
+  catVars <- c("isat_mathpl", "isat_readpl", "fGradeLvl")
   for (myVar in catVars) {
     cVar <- as.character(myData[, myVar])
     for(val in unique(cVar)){
@@ -86,17 +83,15 @@
     }
   } # XXX There's likely a more elegant way to do this. Note that model.matrix(~0+var) drops observations with NAs, returning a vector of shorter length (which, at this stage, we don't want)
   
-  subVars <- c("sid", "Org", "Site", "fGradeLvl", "fGradeGrp_K5_68_HS", "SchYear", "schlid", descVars) 
+  subVars <- c("sid", "org", "site", "fGradeLvl", "fGradeGrp_K5_68_HS", "SchYear", "schlid", descVars) 
   calcData <- myData[, subVars]
-  #detach(myData)
   
-  # Also, remove obs that didn't match to CPS and are NA for basically all the variables we will use for calculations
+  # Remove obs that didn't match to CPS and are NA for basically all the variables we will use for calculations
   calcData <- calcData[!is.na(calcData$schlid), ]
   
   ### ERW: We need to look into who these IDs are and how they got mixed into the dataset.  They should theoretically be removed during
   ## data preparation unless there is a reason to keep them in.  I'm comfortable to drop now since NAs get dropped from all calcs.  But 
   ## some might have a few values?  How does that happen?  Fundamental question: are these people in the CPS master file?
-
 
   
 #------------------------------  
@@ -105,13 +100,13 @@
 #------------------------------
 #------------------------------
 
-  calcData$All <- "All" # This creates a single "category" to allow us to specify an "all-in" calculation rather than a subset
+  calcData$all <- "All" # This creates a single "category" to allow us to specify an "all-in" calculation rather than a subset
   attach(calcData)
   
   ## Establish a function to calculate mean, variance, N and se by arbitrary subgroups
 
   # Audit values
-  # data = calcData; byVars = c("Org", "All",  "All"); myVars = descVars
+  # data = calcData; byVars = c("org", "all",  "all"); myVars = descVars
   runStats <- function(data, byVars, myVars, name.cols = FALSE){
     
     byList <- lapply(byVars, function(x) data[, x])
@@ -136,15 +131,24 @@
     return(out)
   }
 
-  stats.byOrg     <- runStats(data = calcData, byVars = c("Org", "All",  "All"               ), myVars = descVars)
-  stats.bySite    <- runStats(data = calcData, byVars = c("Org", "Site", "All"               ), myVars = descVars)
-  stats.byOrgGr   <- runStats(data = calcData, byVars = c("Org", "All",  "fGradeLvl"         ), myVars = descVars)
-  stats.bySiteGr  <- runStats(data = calcData, byVars = c("Org", "Site", "fGradeLvl"         ), myVars = descVars)
-  stats.byOrgGrp  <- runStats(data = calcData, byVars = c("Org", "All",  "fGradeGrp_K5_68_HS"), myVars = descVars)
-  stats.bySiteGrp <- runStats(data = calcData, byVars = c("Org", "Site", "fGradeGrp_K5_68_HS"), myVars = descVars)
+  # XXX NSM: This is extremely inelegant--would love to find a way to clean this up
+
+  stats.byOrg1     <- runStats(data = calcData, byVars = c("cYMCA", "all" , "all"               , SchYear), myVars = descVars)
+  stats.byOrg2     <- runStats(data = calcData, byVars = c("cASM" , "all" , "all"               , SchYear), myVars = descVars)
+  stats.bySite1    <- runStats(data = calcData, byVars = c("cYMCA", "site", "all"               , SchYear), myVars = descVars)
+  stats.bySite2    <- runStats(data = calcData, byVars = c("cASM" , "site", "all"               , SchYear), myVars = descVars)
+  stats.byOrgGr1   <- runStats(data = calcData, byVars = c("cYMCA", "all" , "fGradeLvl"         , SchYear), myVars = descVars)
+  stats.byOrgGr2   <- runStats(data = calcData, byVars = c("cASM" , "all" , "fGradeLvl"         , SchYear), myVars = descVars)
+  stats.bySiteGr1  <- runStats(data = calcData, byVars = c("cYMCA", "site", "fGradeLvl"         , SchYear), myVars = descVars)
+  stats.bySiteGr2  <- runStats(data = calcData, byVars = c("cASM" , "site", "fGradeLvl"         , SchYear), myVars = descVars)
+  stats.byOrgGrp1  <- runStats(data = calcData, byVars = c("cYMCA", "all" , "fGradeGrp_K5_68_HS", SchYear), myVars = descVars)
+  stats.byOrgGrp2  <- runStats(data = calcData, byVars = c("cASM" , "all" , "fGradeGrp_K5_68_HS", SchYear), myVars = descVars)
+  stats.bySiteGrp1 <- runStats(data = calcData, byVars = c("cYMCA", "site", "fGradeGrp_K5_68_HS", SchYear), myVars = descVars)
+  stats.bySiteGrp2 <- runStats(data = calcData, byVars = c("cASM" , "site", "fGradeGrp_K5_68_HS", SchYear), myVars = descVars)
   
-  stats.org <- rbind(stats.byOrg, stats.bySite, stats.byOrgGr, stats.bySiteGr, stats.byOrgGrp, stats.bySiteGrp)
-  colnames(stats.org)[1:3] <- c("Org", "Site", "Grade")
+  stats.org <- rbind(stats.byOrg1, stats.bySite1, stats.byOrgGr1, stats.bySiteGr1, stats.byOrgGrp1, stats.bySiteGrp1)
+                     stats.byOrg2, stats.bySite2, stats.byOrgGr2, stats.bySiteGr2, stats.byOrgGrp2, stats.bySiteGrp2)
+  colnames(stats.org)[1:3] <- c("org", "site", "grade", "year")
   
   # ERW: will need to add school year as another unit of analysis
   
@@ -166,7 +170,7 @@
   
   # Calculate school means overall and by grade
 
-    stats.bySch    <- runStats(data = calcData, byVars = c("schlid", "All"               ), myVars = descVars)
+    stats.bySch    <- runStats(data = calcData, byVars = c("schlid", "all"               ), myVars = descVars)
     stats.bySchGr  <- runStats(data = calcData, byVars = c("schlid", "fGradeLvl"         ), myVars = descVars)  
     stats.bySchGrp <- runStats(data = calcData, byVars = c("schlid", "fGradeGrp_K5_68_HS"), myVars = descVars)
     
