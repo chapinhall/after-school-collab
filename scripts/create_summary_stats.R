@@ -113,7 +113,7 @@
     # If the calculation is detailed to within-organization programs--i.e., if the summary is NOT across all sites, programs, and grades--
     #   then subset the data to remove non-organization records. This takes advantage of the fact that non-org records include the substring
     #   "Non", which represents either "None" or "Non-<org>".
-    if(all(byVars[2:4]=="all")) {
+    if(all(byVars[2:3]=="all")) {
       useData <- data
     } else {
       useData <- data[!grepl("Non", data[,byVars[1]]), ]
@@ -159,7 +159,6 @@
   }
   stats.org <- rbind(stats.cYMCA, stats.cASM) # stats.collab
   
-  
   colnames(stats.org)[1:5] <- c("org", "site", "program", "grade", "year")
   
 
@@ -170,20 +169,20 @@
 #----------------------------------------------------------------------------
   
   # The representative peer group is defined as students who attend the same schools as students in the treatment program.
-  # If 60% of treatment kids attend School H, and 40% attend School Y, 
-  # the appropriate comparison for the mean of the treatment group is not the citywide average, but .6*School H's avg + .4*School Y's.
-  # This is one way of correcting for the fact that partcipants are not broadly representative of the CPS system.
-  # The below code calculates these averages both for the full treatment group and for each site.  
+  # If 60% of treatment kids attend School H, and 40% attend School Y, the appropriate comparison for the mean of the served
+  # population is not the citywide average, but .6*School H's avg + .4*School Y's. 
+  # This is one way of addressing for the fact that partcipants are not broadly representative of the CPS system.
+  # The below code calculates these averages both for the served population in aggregate and for each site.  
   
   
   # Calculate school means overall and by grade
 
-    stats.bySch    <- runStats(data = calcData, byVars = c("schlid", "all"               ), myVars = descVars)
-    stats.bySchGr  <- runStats(data = calcData, byVars = c("schlid", "fGradeLvl"         ), myVars = descVars)  
-    stats.bySchGrp <- runStats(data = calcData, byVars = c("schlid", "fGradeGrp_K5_68_HS"), myVars = descVars)
+    stats.bySch    <- runStats(data = calcData, byVars = c("schlid", "all"               , "year"), myVars = descVars)
+    stats.bySchGr  <- runStats(data = calcData, byVars = c("schlid", "fGradeLvl"         , "year"), myVars = descVars)  
+    stats.bySchGrp <- runStats(data = calcData, byVars = c("schlid", "fGradeGrp_K5_68_HS", "year"), myVars = descVars)
     
     stats.sch <- rbind(stats.bySch, stats.bySchGr, stats.bySchGrp)
-    colnames(stats.sch)[1:2] <- c("Sch", "Grade")  
+    colnames(stats.sch)[1:3] <- c("sch", "grade", "year")  
   
 
   #-------------------------
@@ -199,8 +198,8 @@
       
       getSubset <- function(subvar, subval){
         if (subval == "All"){
-          return(calcData$All == calcData$All) # XXX Basically, an inelegant way to return a vector of "TRUE" values
-        } else if(subvar == "Grade") {
+          return(calcData$all == calcData$all) # XXX Basically, an inelegant way to return a right-sized vector of "TRUE" values
+        } else if(subvar == "grade") {
           
           # Separate handling for grade ranges versus individual grade levels
           if (subval %in% c("K-5", "6-8", "HS")){
@@ -218,7 +217,7 @@
   ## Establish Peer Stats Function
   #-------------------------------
 
-    # Establish a function to calculate weighted statistics. This uses inner products to apply the weights and sum. Note that
+    # Establish a function to calculate weighted statistics. This uses the weighted.mean function to apply the weights and sum. Note that
     # while the means and N calculations are straight weighted means, the variance calculation requires more special treatment.
     # If a weighted mean characteristics for schools A and B, with weights c and d, is calculated as mu = c*\bar{x_A} + d*\bar{x_B}
     #    then the variance is 
@@ -228,7 +227,7 @@
   
     peerStats.fn <- function(myProps, myVar, mySchStats){
       
-      stats.props <- merge(mySchStats, myProps, by = "Sch")  # merge proportions into school-level stats data
+      stats.props <- merge(mySchStats, myProps, by = "sch")  # merge proportions into school-level stats data
       stats.props <- stats.props[!is.na(stats.props$mean), ] # remove school rows with missing calculations - XXX Could be refactored to be faster if dropping these all ahread of time
       stats.props$prop <- stats.props$prop / sum(stats.props$prop) # inflate the proportions to reflect any drops of schools with missing values
       stats.props$prop2 <- stats.props$prop^2 # This weight is necessary for variance calculations, noted above
@@ -246,9 +245,9 @@
   ## Call the peer averages function, and save and close up
   #--------------------------------------------------------
   
-    subsetVars <- c("Org", "Site", "Grade")
+    subsetVars <- c("org", "site", "program", "grade", "year")
     runList <- unique(stats.org[, subsetVars])
-    runList <- runList[!grepl("None", runList$Org),]
+    runList <- runList[!grepl("Non", runList$org),] # Remove all non-org runs, so that we only calculate school-based peers for served populations
   
     #stats.peers <- mapply(peerStats.fn, runList$Org, runList$Site, runList$Grade)
 
@@ -256,47 +255,52 @@
     # Initialize output data frame
     rl <- runList
     nRuns <- nrow(rl)
-    stats.peers <- data.frame(Org = rep("", nRuns), Site = rep("", nRuns), Grade = rep("", nRuns), variable = rep("", nRuns),
-                              mean = rep(0.0, nRuns), n = rep(0.0, nRuns), var_mean = rep(0.0, nRuns), se_mean = rep(0.0, nRuns))
-    for (i in 1:nRuns){
+    stats.peers <- NULL # Had previously thought to initialize this matrix, but ultimately it is relatively small, and a bit simpler to just append results
+
+  for (i in 1:nRuns){
       
       # Audit values
       #org = "YMCA"; site = "High Ridge YMCA"; grade = "All"
       #org = "YMCA"; site = "All"; grade = "All"
-      org <- rl$Org[1]; site <- rl$Site[i]; grade <- rl$Grade[i]
+      org <- rl$org[i]; site <- rl$site[i]; program <- rl$program[i]; grade <- rl$grade[i]; year <- rl$year[i];
       
-      mySchs <- calcData[getSubset("Org", org) & getSubset("Site", site) & getSubset("Grade", grade), "schlid"]
+      mySchs <- calcData[getSubset("org", org) & getSubset("site", site) & getSubset("program", program) & getSubset("grade", grade) & getSubset("year", year), "schlid"]
       schP <- data.frame(prop.table(table(mySchs)))
-      colnames(schP) <- c("Sch", "prop")
+      colnames(schP) <- c("sch", "prop")
       
       # Get school-level statistics for schools involving in the current calculation
-      schStats <- stats.sch[stats.sch$Sch %in% schP$Sch &
-                            stats.sch$Grade == grade &
+      schStats <- stats.sch[stats.sch$sch %in% schP$sch &
+                            stats.sch$grade == grade &
                             stats.sch$variable %in% descVars,
-                            c("Sch", "variable", "mean", "n", "var_mean")]
+                            c("sch", "variable", "mean", "n", "var_mean")]
       
       # Set up header for identifying calculations
-      outHeader <- data.frame(Org = rl$Org[i], Site = rl$Site[i], Grade = rl$Grade[i])
+      outHeader <- data.frame(org = rl$org[i], site = rl$site[i], program = rl$program[i], grade = rl$grade[i], year = rl$year[i])
       
-      print(paste("org =", org, ", site =", site, ", Grade =", grade))
+      print(paste("Performing run ", i, " of ", nRuns, "or ", round(i/nRuns, 3)*100, "% done. Run is for: org =", org, ", site =", site, ", program =", program, ", grade =", grade, ", year =", year))
       
       # Run calculations variable by variable since different variables by school may have different numbers of NAs to drop
       for (v in descVars){
         
         peerStats <- peerStats.fn(myProps = schP, myVar = v, mySchStats = schStats[schStats$variable == v, ])
-        stats.peers <- rbind(stats.peers, 
-                             cbind(outHeader, peerStats))
+        # stats.peers[i,] <- cbind(outHeader, peerStats) ... this does not work to replace the full row in stats.peers
+        stats.peers <- rbind(stats.peers, cbind(outHeader, peerStats))
         
       }
     }
 
-    stats.peers$Site <- paste0(stats.peers$Site, " Sch-Based Peers")
+    stats.peers$site <- paste0(stats.peers$site, " Sch-Based Peers")
 
     descStats    <- rbind(stats.org[, colnames(stats.peers)], stats.peers)
     descStats$plusminus <- descStats$se_mean * 1.96
-    descStats$id <- paste(descStats$Org, descStats$Site, descStats$Grade, descStats$variable, sep="_")
+    descStats$id <- paste(descStats$org, descStats$site, descStats$program, descStats$grade, descStats$year, descStats$variable, sep="_")
     
     save(descStats, file = paste0(dataPath, "descStats.Rda"))
     write.csv(descStats, file = paste0(dataPath, "descStats.csv"))
+
+    combos <- unique(descStats[, c("org", "site", "program", "grade", "year")])
+    combos$id <- paste(combos$org, combos$site, combos$program, combos$grade, combos$year, sep="_")
+    combos$gradefilter <- ifelse(combos$grade!="All" & (combos$site!="All" | combos$program!="All"), 1, 0)
+    write.csv(combos, file = paste0(dataPath, "combos.csv"))
 
 # XXX: Why are there NaN's here?  (And elsewhere in calculated means).  Need to track these anomalies down and check data.
