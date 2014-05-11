@@ -27,13 +27,14 @@
 #--------------------------#
 
 if (1 == runRegs) {
-  depVarList <- c("Pct_Attend", "mathss", "readss") #, "bOnTrack", "bHsGrad") ... we don't yet have enough HS-aged youth participating in programming in linked data to be able to run onTrack and high school graduation analyses
-    depVarNames <- c("School Attendance", "Math Score", "Reading Score") #, "On-Track Status", "HS Graduated")
+  depVarList <- c("Pct_Attend", "isat_mathss", "isat_readss", "bOnTrack", "bHsGrad") 
+    depVarNames <- c("Rate of School Attendance", "ISAT Math Score", "ISAT Reading Score", "On-Track Status", "Graduating Seniors")
     depVarYLabs <- c("Sch Attendance, % Units", "Scale Score Units", "Scale Score Units") #, "Impact on Prob of Being On-Track", "Impact on HS Graduation")
-  regVars <- c("bLunch_F", "bLunch_R", "fRace", "Female", "fGradeLvl")
-  TrtVars <- c("UsedYss", "fShortSite") # 
+  regVars <- c("bLunch_F", "bLunch_R", "fRace", "Female", "fGradeLvl", "iep_test", "lep_test", "Tract_ViolentCrimes_PerHundr", "Tract_Pct_IncRatKidsLt6_Lt185")
+  TrtVars <- c("org", "site") # 
   thinData <- myData[, c(depVarList, depVarList %&% "_pre", regVars, TrtVars)]
-  thinData$fShortSite <- relevel(thinData$fShortSite, ref="None of the Above")
+  thinData$org  <- relevel(thinData$org,  ref="None")
+  thinData$site <- relevel(thinData$site, ref="None")
   
   RunRegs <- function(useData, myDepVarList, myTrtVars, suffix){
     for (depVar in myDepVarList){
@@ -46,8 +47,8 @@ if (1 == runRegs) {
         regData <- useData[!is.na(useData[,depVar]), ]
         adjReg  <- summary(lm(as.formula(depVar   %&% " ~ bLunch_F + bLunch_R + fRace + Female + fGradeLvl + mathss_pre + readss_pre + Pct_Attend_pre + " %&% trtVar), data = regData))
         
-        if (trtVar == "UsedYss") {
-          print("  Generating plot for aggregate effects")
+        if (trtVar == "org") {
+          print("  Generating reg out by organization")
           rawReg  <- summary(lm(as.formula(depVar   %&% " ~ " %&% trtVar), data = regData))
           gainReg <- summary(lm(as.formula(I(sGain) %&% " ~ " %&% trtVar), data = regData))
           preReg  <- summary(lm(as.formula(paste0(depVar, " ~ ", trtVar, " + ", depVar, "_pre")), data = regData))
@@ -63,7 +64,7 @@ if (1 == runRegs) {
           Eff$ul <- Eff$b + 1.96*Eff$se
           
         } else {
-          print("  Generating plot by Site")
+          print("  Generating reg output by Site")
           
           # Identify sites with 10 or more observations
           rowsInReg <- rownames(regData) %in% names(adjReg$residuals)
