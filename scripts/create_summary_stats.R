@@ -82,7 +82,7 @@
   } # XXX There's likely a more elegant way to do this. Note that model.matrix(~0+var) drops observations with NAs, returning a vector of shorter length (which, at this stage, we don't want)
   descVars <- descVars[!(descVars %in% c("isat_mathpl", "isat_readpl"))] # Remove character variables
   
-  subVars <- c("sid", "org", "bCollab", "cYMCA", "cASM", "site", "program", "fGradeLvl", "fGradeGrp_K5_68_HS", "year", "schlid", descVars) 
+  subVars <- c("sid", "org", "bCollab", "YMCA", "ASM", "site", "program", "fGradeLvl", "fGradeGrp_K5_68_HS", "year", "schlid", descVars) 
   calcData <- myData[, subVars]
   
   # Remove obs that didn't match to CPS and are NA for basically all the variables we will use for calculations
