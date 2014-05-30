@@ -3,7 +3,7 @@
 # CREATE DESCRIPTIVE SUMMARY STATISTICS	      # 
 #                                             #
 # Authors: Nick Mader, Ian Matthew Morey,     # 
-#		    and Emily Wiegand		                  #  
+#		    Emily Wiegand, Kim Foley              #  
 #---------------------------------------------#
 #---------------------------------------------#
 
@@ -20,7 +20,7 @@
   library("reshape")
   #library("plyr")
   #library("data.table")
-  ds <- function(x){ deparse(substitute(x))}
+  ep <- function(x){ eval(parse(TEXT = x))}
   "%&%" <- function(...) { paste(..., sep="")}
   paste0 <- function(...) { paste(..., sep="")}
   
@@ -57,16 +57,16 @@
 
   # Build a list of descriptive variables
   cNames <- colnames(myData)
-  descVars <- c("Pct_Attend", "bOnTrack", "bHsGrad", "bGender_Male", "bGender_Female", "bIEP", "iep_test", "lep_test", "lunch_test",
+  descVars <- c("bOnTrack", "bGender_Male", "bGender_Female", "bIEP", "iep_test", "lep_test", "lunch_test",
+                grep("Pct_Attend",cNames, value=T),
                 grep("isat_",     cNames, value=T),
                 grep("explore_",  cNames, value=T),
                 grep("plan_",     cNames, value=T),
                 grep("psae_",     cNames, value=T),
                 grep("bRace",     cNames, value=T),
                 grep("bLunch",    cNames, value=T),
-                grep("Tract_",    cNames, value=T),
-                grep("GradeLvl_", cNames, value=T))
-                #grep("MVMS_",     cNames, value=T)) 
+                grep("Tract_",    cNames, value=T))
+                #grep("MVMS_",     cNames, value=T)) # "bHsGrad", 
 
   # Create dummy variables of catVar values to be treated as continuous vars
   catVars <- c("isat_mathpl", "isat_readpl", "fGradeLvl")
@@ -82,16 +82,9 @@
   } # XXX There's likely a more elegant way to do this. Note that model.matrix(~0+var) drops observations with NAs, returning a vector of shorter length (which, at this stage, we don't want)
   descVars <- descVars[!(descVars %in% c("isat_mathpl", "isat_readpl"))] # Remove character variables
   
-  subVars <- c("sid", "org", "bCollab", "YMCA", "ASM", "site", "program", "fGradeLvl", "fGradeGrp_K5_68_HS", "year", "schlid", descVars) 
+  subVars <- c("sid", "org", "bCollab", "YMCA", "ASM", "CHASI", "site", "program", "fGradeLvl", "fGradeGrp_K5_68_HS", "year", "schlid", descVars) 
   calcData <- myData[, subVars]
   
-  # Remove obs that didn't match to CPS and are NA for basically all the variables we will use for calculations
-  calcData <- calcData[!is.na(calcData$schlid), ]
-  
-  ### ERW: We need to look into who these IDs are and how they got mixed into the dataset.  They should theoretically be removed during
-  ## data preparation unless there is a reason to keep them in.  I'm comfortable to drop now since NAs get dropped from all calcs.  But 
-  ## some might have a few values?  How does that happen?  Fundamental question: are these people in the CPS master file?
-
   
 #------------------------------  
 #------------------------------
@@ -107,7 +100,7 @@
 
   # Audit values
   # data = calcData; byVars = c("cYMCA", "all", "all", "all", "year"); myVars = descVars
-  data = calcData; byVars = c("cASM", "all", "program", "all", "year"); myVars = descVars
+  data = calcData; byVars = c("ASM", "all", "all", "all", "year"); myVars = descVars
   runStats <- function(data, byVars, myVars, name.cols = FALSE){
     
     # If the calculation is detailed to within-organization programs--i.e., if the summary is NOT across all sites, programs, and grades--
