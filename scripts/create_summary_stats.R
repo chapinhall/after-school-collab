@@ -98,6 +98,57 @@
   
   ## Establish a function to calculate mean, variance, N and se by arbitrary subgroups
 
+############# ERW: Code additions and notes 6/2 ##############
+
+
+###Updating filtering: change byVars
+  # ByVars1 -> ORG: always org
+  # ByVars2 -> SITE: ALL or site
+  # ByVars3 -> PROGRAM: ALL or program
+  # ByVars4 -> GRADE: ALL or grade
+  # ByVars5 -> YEAR: ALL or year
+
+## Will need to filter on org in ByVars1.
+### Then, determine which of ByVars 2:5 do not = all.
+### Create a subset dataframe with just sid, org, and these variables, and use duplicated() to find which row numbers are unique.
+### Filter to only these row numbers in the original dataframe.
+### Run aggregate function. 
+
+data = calcData; orgs = 'ASM'; byVars = c("org", "all", "all", "all", "year"); myVars = descVars
+runStats <- function(data, orgs, byVars, myVars){
+  
+  useData <- data[data$org %in% orgs,]
+  toFilter <- sapply(byVars, function(x) x != 'all')
+  filterVars <- as.character(byVars[toFilter])
+
+  keepRows <- !duplicated(useData[,c("sid", filterVars)])
+  useData <- useData[keepRows,]
+    
+  # Calculate various summary statistics
+  byList <- lapply(byVars, function(x) useData[, x])
+  myMeans <- aggregate(useData[, myVars], byList, mean, na.rm=T)
+  myS2    <- aggregate(useData[, myVars], byList, function(x) var(x, na.rm=T))
+  myNs    <- aggregate(useData[, myVars], byList, function(x) sum(!is.na(x)))
+  myMeans$stat <- "mean"; myS2$stat <- "var"; myNs$stat <- "n"
+  stack <- rbind(myMeans, myS2, myNs)
+    
+  byNames <- c("org", "site", "program", "grade", "year")
+  colnames(stack)[1:length(byNames)] <- byNames
+  
+  # Reshape the data set to have records by byVars, and statistics going across
+  # XXX This could probably be done by sequential merges after the calculations, but this code is just about as short
+  longstack <- melt(stack, id=c(byNames, "stat"))
+  out <- cast(longstack, as.formula(paste0(paste(c(byNames, "variable"), collapse="+"), "~ stat")))
+  out$sd <- sqrt(out$var)
+  out$var_mean <- out$var / out$n
+  out$se_mean <- sqrt(out$var_mean)
+  return(out)
+}
+
+
+
+################# Original code ###################################
+
   # Audit values
   # data = calcData; byVars = c("cYMCA", "all", "all", "all", "year"); myVars = descVars
   data = calcData; byVars = c("ASM", "all", "all", "all", "year"); myVars = descVars
