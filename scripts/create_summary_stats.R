@@ -82,7 +82,7 @@
   } # XXX There's likely a more elegant way to do this. Note that model.matrix(~0+var) drops observations with NAs, returning a vector of shorter length (which, at this stage, we don't want)
   descVars <- descVars[!(descVars %in% c("isat_mathpl", "isat_readpl"))] # Remove character variables
   
-  subVars <- c("sid", "org", "bCollab", "YMCA", "ASM", "CHASI", "site", "program", "fGradeLvl", "fGradeGrp_K5_68_HS", "year", "schlid", descVars) 
+  subVars <- c("sid", "org", "Collab", "YMCA", "ASM", "CHASI", "site", "program", "fGradeLvl", "fGradeGrp_K5_68_HS", "year", "schlid", descVars) 
   calcData <- myData[, subVars]
   rm(myData)
   
@@ -150,7 +150,7 @@
     stats.bySiteGr  <- runStats(data = calcData, byVars = c(myOrg, "site", "all"    , "fGradeLvl"         , "year"), myVars = descVars)
     stats.bySiteGrp <- runStats(data = calcData, byVars = c(myOrg, "site", "all"    , "fGradeGrp_K5_68_HS", "year"), myVars = descVars)
     stats.byProgGr  <- runStats(data = calcData, byVars = c(myOrg, "all" , "program", "fGradeLvl"         , "year"), myVars = descVars)
-    stats.byProgGrp <- runStats(data = calcData, byVars = c(myOrg, "all" , "program", "fGradeGrp_K5_68_HS", "year"), myVars = descVars))
+    stats.byProgGrp <- runStats(data = calcData, byVars = c(myOrg, "all" , "program", "fGradeGrp_K5_68_HS", "year"), myVars = descVars)
     assign("stats." %&% myOrg, rbind(stats.byOrg, stats.bySite, stats.byProg, stats.byOrgGr, stats.bySiteGr, stats.byOrgGrp, stats.bySiteGrp, stats.byProgGr, stats.byProgGrp))
     }
 
