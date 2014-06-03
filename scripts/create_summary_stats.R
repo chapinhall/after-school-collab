@@ -84,7 +84,7 @@
   
   subVars <- c("sid", "org", "bCollab", "YMCA", "ASM", "CHASI", "site", "program", "fGradeLvl", "fGradeGrp_K5_68_HS", "year", "schlid", descVars) 
   calcData <- myData[, subVars]
-  
+  rm(myData)
   
 #------------------------------  
 #------------------------------
@@ -114,7 +114,7 @@
 ### Filter to only these row numbers in the original dataframe.
 ### Run aggregate function. 
 
-data = calcData; orgs = 'ASM'; byVars = c("org", "all", "all", "all", "year"); myVars = descVars
+data = calcData; orgs = c('ASM', 'None'); byVars = c("org", "all", "all", "all", "year"); myVars = descVars
 runStats <- function(data, orgs, byVars, myVars){
   
   useData <- data[data$org %in% orgs,]
@@ -132,9 +132,6 @@ runStats <- function(data, orgs, byVars, myVars){
   myMeans$stat <- "mean"; myS2$stat <- "var"; myNs$stat <- "n"
   stack <- rbind(myMeans, myS2, myNs)
     
-  byNames <- c("org", "site", "program", "grade", "year")
-  colnames(stack)[1:length(byNames)] <- byNames
-  
   # Reshape the data set to have records by byVars, and statistics going across
   # XXX This could probably be done by sequential merges after the calculations, but this code is just about as short
   longstack <- melt(stack, id=c(byNames, "stat"))
@@ -190,22 +187,21 @@ runStats <- function(data, orgs, byVars, myVars){
 
   # Run Calculations across various summary levels
 
-  for (myOrg in c("cYMCA", "cASM")){
+  for (myOrg in list(c("YMCA"), c("ASM"))){
     print(paste0("Initiating calculations for ", myOrg))
-    stats.byOrg     <- runStats(data = calcData, byVars = c(myOrg, "all" , "all"    , "all"               , "year"), myVars = descVars); print("The big all-in calculation has been completed")
-    stats.bySite    <- runStats(data = calcData, byVars = c(myOrg, "site", "all"    , "all"               , "year"), myVars = descVars)
-    stats.byProg    <- runStats(data = calcData, byVars = c(myOrg, "all" , "program", "all"               , "year"), myVars = descVars)
-    stats.byOrgGr   <- runStats(data = calcData, byVars = c(myOrg, "all" , "all"    , "fGradeLvl"         , "year"), myVars = descVars)
-    stats.bySiteGr  <- runStats(data = calcData, byVars = c(myOrg, "site", "all"    , "fGradeLvl"         , "year"), myVars = descVars)
-    stats.byOrgGrp  <- runStats(data = calcData, byVars = c(myOrg, "all" , "all"    , "fGradeGrp_K5_68_HS", "year"), myVars = descVars)
-    stats.bySiteGrp <- runStats(data = calcData, byVars = c(myOrg, "site", "all"    , "fGradeGrp_K5_68_HS", "year"), myVars = descVars)
-    assign("stats." %&% myOrg, rbind(stats.byOrg, stats.bySite, stats.byProg, stats.byOrgGr, stats.bySiteGr, stats.byOrgGrp, stats.bySiteGrp))
+    stats.byOrg     <- runStats(data = calcData, orgs = myOrg, byVars = c("org", "all" , "all"    , "all"               , "year"), myVars = descVars); print("The big all-in calculation has been completed")
+    stats.bySite    <- runStats(data = calcData, orgs = myOrg, byVars = c("org", "site", "all"    , "all"               , "year"), myVars = descVars)
+    stats.byProg    <- runStats(data = calcData, orgs = myOrg, byVars = c("org", "all" , "program", "all"               , "year"), myVars = descVars)
+    stats.byOrgGr   <- runStats(data = calcData, orgs = myOrg, byVars = c("org", "all" , "all"    , "fGradeLvl"         , "year"), myVars = descVars)
+    stats.bySiteGr  <- runStats(data = calcData, orgs = myOrg, byVars = c("org", "site", "all"    , "fGradeLvl"         , "year"), myVars = descVars)
+    stats.byOrgGrp  <- runStats(data = calcData, orgs = myOrg, byVars = c("org", "all" , "all"    , "fGradeGrp_K5_68_HS", "year"), myVars = descVars)
+    stats.bySiteGrp <- runStats(data = calcData, orgs = myOrg, byVars = c("org", "site", "all"    , "fGradeGrp_K5_68_HS", "year"), myVars = descVars)
+    assign("stats." %&% myOrg[1], rbind(stats.byOrg, stats.bySite, stats.byProg, stats.byOrgGr, stats.bySiteGr, stats.byOrgGrp, stats.bySiteGrp))
   }
-  stats.org <- rbind(stats.cYMCA, stats.cASM) # stats.collab
-  
+  stats.org <- rbind(stats.YMCA, stats.ASM) # stats.collab
   colnames(stats.org)[1:5] <- c("org", "site", "program", "grade", "year")
-  
 
+  
 #----------------------------------------------------------------------------
 #----------------------------------------------------------------------------
 ## Calculate average characteristics for representative peers in same schools
@@ -290,7 +286,7 @@ runStats <- function(data, orgs, byVars, myVars){
   #--------------------------------------------------------
   
     subsetVars <- c("org", "site", "program", "grade", "year")
-    runList <- unique(stats.org[, subsetVars])
+    runList <- unique(stats.org[, subsetVars]) #XXX: examine whether this is necessary
     runList <- runList[!grepl("Non", runList$org),] # Remove all non-org runs, so that we only calculate school-based peers for served populations
   
     #stats.peers <- mapply(peerStats.fn, runList$Org, runList$Site, runList$Grade)
