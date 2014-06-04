@@ -36,10 +36,14 @@
     load(dataPath %&% "Scram.Rda")
     myData <- Scram
     rm(Scram)
+    orglist <- c("Org Alpha", "Org Beta")
   } else {
   	load(dataPath %&% "EnrCpsAcs.Rda")
     myData <- EnrCpsAcs
     rm(EnrCpsAcs)
+    
+    orglist <- c("YMCA", "ASM", "CHASI") # UPDATE HERE AS WE HAVE DATA FOR NEW PARTNERS TO INCLUDE IN TOTALS.
+    
   } 
 
   
@@ -82,7 +86,7 @@
   } # XXX There's likely a more elegant way to do this. Note that model.matrix(~0+var) drops observations with NAs, returning a vector of shorter length (which, at this stage, we don't want)
   descVars <- descVars[!(descVars %in% c("isat_mathpl", "isat_readpl"))] # Remove character variables
   
-  subVars <- c("sid", "org", "Collab", "YMCA", "ASM", "CHASI", "site", "program", "fGradeLvl", "fGradeGrp_K5_68_HS", "year", "schlid", descVars) 
+  subVars <- c("sid", "org", "Collab", orglist, "site", "program", "fGradeLvl", "fGradeGrp_K5_68_HS", "year", "schlid", descVars) 
   calcData <- myData[, subVars]
   rm(myData)
   
@@ -140,7 +144,16 @@
 
   # Run Calculations across various summary levels
 
-  for (myOrg in c("YMCA", "ASM", "CHASI")){
+  print("Initiating calculations for full collaborative")
+  stats.byCollab     <- runStats(data = calcData, byVars = c("Collab", "all" , "all"    , "all"               , "year"), myVars = descVars); print("The big all-in calculation has been completed")
+  stats.byCollabGr   <- runStats(data = calcData, byVars = c("Collab", "all" , "all"    , "fGradeLvl"         , "year"), myVars = descVars)
+  stats.byCollabGrp  <- runStats(data = calcData, byVars = c("Collab", "all" , "all"    , "fGradeGrp_K5_68_HS", "year"), myVars = descVars)
+  stats.collab       <- rbind(stats.byCollab, stats.byCollabGr, stats.byCollabGrp)    
+
+  stats.org          <- stats.collab
+  rm(stats.collab, stats.byCollab, stats.byCollabGr, stats.byCollabGrp)
+
+  for (myOrg in orglist){
     print(paste0("Initiating calculations for ", myOrg))
     stats.byOrg     <- runStats(data = calcData, byVars = c(myOrg, "all" , "all"    , "all"               , "year"), myVars = descVars); print("The big all-in calculation has been completed")
     stats.byOrgGrp  <- runStats(data = calcData, byVars = c(myOrg, "all" , "all"    , "fGradeGrp_K5_68_HS", "year"), myVars = descVars)
@@ -151,17 +164,14 @@
     stats.bySiteGrp <- runStats(data = calcData, byVars = c(myOrg, "site", "all"    , "fGradeGrp_K5_68_HS", "year"), myVars = descVars)
     stats.byProgGr  <- runStats(data = calcData, byVars = c(myOrg, "all" , "program", "fGradeLvl"         , "year"), myVars = descVars)
     stats.byProgGrp <- runStats(data = calcData, byVars = c(myOrg, "all" , "program", "fGradeGrp_K5_68_HS", "year"), myVars = descVars)
-    assign("stats." %&% myOrg, rbind(stats.byOrg, stats.bySite, stats.byProg, stats.byOrgGr, stats.bySiteGr, stats.byOrgGrp, stats.bySiteGrp, stats.byProgGr, stats.byProgGrp))
+    
+    # No longer assembling individual datasets by org to avoid hardcoding org names (using flexibility of orglist)
+    stats.org       <- rbind(stats.org, stats.byOrg, stats.bySite, stats.byProg, stats.byOrgGr, stats.bySiteGr, stats.byOrgGrp, stats.bySiteGrp, stats.byProgGr, stats.byProgGrp))
     }
-
-    print("Initiating calculations for full collaborative")
-    stats.byCollab     <- runStats(data = calcData, byVars = c("Collab", "all" , "all"    , "all"               , "year"), myVars = descVars); print("The big all-in calculation has been completed")
-    stats.byCollabGr   <- runStats(data = calcData, byVars = c("Collab", "all" , "all"    , "fGradeLvl"         , "year"), myVars = descVars)
-    stats.byCollabGrp  <- runStats(data = calcData, byVars = c("Collab", "all" , "all"    , "fGradeGrp_K5_68_HS", "year"), myVars = descVars)
-    stats.collab       <- rbind(stats.byCollab, stats.byCollabGr, stats.byCollabGrp)    
   
-    stats.org <- rbind(stats.YMCA, stats.ASM, stats.CHASI, stats.collab)
-    colnames(stats.org)[1:5] <- c("org", "site", "program", "grade", "year")
+  colnames(stats.org)[1:5] <- c("org", "site", "program", "grade", "year")
+
+  rm(stats.byOrg, stats.byOrgGrp, stats.byOrgGr, stats.bySite, stats.byProg, stats.bySiteGr, stats.bySiteGrp, stats.byProgGr, stats.byProgGrp)
 
   
 #----------------------------------------------------------------------------
@@ -184,7 +194,8 @@
     stats.bySchGrp <- runStats(data = calcData, byVars = c("schlid", "fGradeGrp_K5_68_HS", "year"), myVars = descVars)
     
     stats.sch <- rbind(stats.bySch, stats.bySchGr, stats.bySchGrp)
-    colnames(stats.sch)[1:3] <- c("sch", "grade", "year")  
+    colnames(stats.sch)[1:3] <- c("sch", "grade", "year") 
+    rm(stats.bySch, stats.bySchGr, stats.bySchGrp)
   
 
   #-------------------------
@@ -192,14 +203,15 @@
   #-------------------------
 
     #---------
-    # Create a function to return All records when "All" is specified (even though the value "All" does not appear).
+    # Create a function to return the appropriate observations for calculating school peer proportions
+    # (i.e. returning all records when "All" is specified, even though the value "All" does not appear)
     #---------
   
-      # XXX Could also be replaced with conditions of e.g. "grepl(org, calcData$Org)" where "*" can be passed to org
-        # ...except that some variables like Grade need special handling
+      # Because grade and org need special handling, can't use conditions (e.g. "grepl(org, calcData$Org)" where "*" can be passed to org)
       
       getSubset <- function(subvar, subval){
         if (subval == "All"){
+        
           return(calcData$all == calcData$all) # XXX Basically, an inelegant way to return a right-sized vector of "TRUE" values
         } else if(subvar == "grade") {
           
@@ -209,7 +221,14 @@
           } else {
             return(calcData$fGradeLvl == subval)
           }
+        } else if(subvar == "org") {
           
+          #Separate handling for full collab versus individual orgs
+          if (subval=='Collab') {
+              return(calcData$Collab == subval)
+            } else {
+              return(calcData$org == subval)
+            }
         } else {
           return(calcData[, subvar] == subval) # Identify rows with specifically the right values
         }
@@ -248,25 +267,28 @@
   #--------------------------------------------------------
   
     subsetVars <- c("org", "site", "program", "grade", "year")
-    runList <- unique(stats.org[, subsetVars]) #XXX: examine whether this is necessary
-    runList <- runList[!grepl("Non", runList$org),] # Remove all non-org runs, so that we only calculate school-based peers for served populations
-  
-    #stats.peers <- mapply(peerStats.fn, runList$Org, runList$Site, runList$Grade)
+    runList <- unique(stats.org[, subsetVars]) # Necessary because stats.org is one line per variable
+    rl <- runList[!grepl("Non", runList$org),] # Remove all non-org runs, so that we only calculate school-based peers for served populations
 
-    # Attempting an alternate strategy to the mapply(), which doesn't like being returned many data frames
-    # Initialize output data frame
-    rl <- runList
+    # stats.peers <- mapply(peerStats.fn, rl$Org, rl$Site, rl$Grade)
+    # Using a loop rather thn mapply() because mapply doesn't like being returned many data frames
+
     nRuns <- nrow(rl)
-    stats.peers <- NULL # Had previously thought to initialize this matrix, but ultimately it is relatively small, and a bit simpler to just append results
+    stats.peers <- NULL
 
-  for (i in 1:nRuns){
+    for (i in 1:nRuns){
       
       # Audit values
-      #org = "YMCA"; site = "High Ridge YMCA"; grade = "All"
+      #org = "YMCA"; site = "High Ridge"; grade = "All"; program = 'All'; year = "2013"
       #org = "YMCA"; site = "All"; grade = "All"
+
       org <- rl$org[i]; site <- rl$site[i]; program <- rl$program[i]; grade <- rl$grade[i]; year <- rl$year[i];
       
-      mySchs <- calcData[getSubset("org", org) & getSubset("site", site) & getSubset("program", program) & getSubset("grade", grade) & getSubset("year", year), "schlid"]
+      mySchs <- calcData[getSubset("org", org) & getSubset("site", site) & getSubset("program", program) & getSubset("grade", grade) & getSubset("year", year), c("sid", "schlid")]
+      
+      # Need each SID once - if any subset value is all, might double count individuals who have two lines in that subset
+      # Audit values with High Ridge illustrate this well
+      mySchs <- unique(mySchs)[,"schlid"] # Note that schlid will be non-unique - this is unique list at the student level
       schP <- data.frame(prop.table(table(mySchs)))
       colnames(schP) <- c("sch", "prop")
       
@@ -291,7 +313,7 @@
       }
     }
 
-    stats.peers$site <- paste0(stats.peers$site, " Sch-Based Peers")
+    stats.peers$site <- paste(stats.peers$site, "Sch-Based Peers")
 
     descStats    <- rbind(stats.org[, colnames(stats.peers)], stats.peers)
     descStats$plusminus <- descStats$se_mean * 1.96
