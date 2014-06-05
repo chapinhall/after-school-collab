@@ -164,10 +164,8 @@
     stats.bySiteGrp <- runStats(data = calcData, byVars = c(myOrg, "site", "all"    , "fGradeGrp_K5_68_HS", "year"), myVars = descVars)
     stats.byProgGr  <- runStats(data = calcData, byVars = c(myOrg, "all" , "program", "fGradeLvl"         , "year"), myVars = descVars)
     stats.byProgGrp <- runStats(data = calcData, byVars = c(myOrg, "all" , "program", "fGradeGrp_K5_68_HS", "year"), myVars = descVars)
-    
-    # No longer assembling individual datasets by org to avoid hardcoding org names (using flexibility of orglist)
-    stats.org       <- rbind(stats.org, stats.byOrg, stats.bySite, stats.byProg, stats.byOrgGr, stats.bySiteGr, stats.byOrgGrp, stats.bySiteGrp, stats.byProgGr, stats.byProgGrp))
-    }
+    stats.org       <- rbind(stats.org, stats.byOrg, stats.bySite, stats.byProg, stats.byOrgGr, stats.bySiteGr, stats.byOrgGrp, stats.bySiteGrp, stats.byProgGr, stats.byProgGrp)
+    }      # No longer assembling individual datasets by org to avoid hardcoding org names (using flexibility of orglist)
   
   colnames(stats.org)[1:5] <- c("org", "site", "program", "grade", "year")
 
@@ -326,5 +324,3 @@
     combos$id <- paste(combos$org, combos$site, combos$program, combos$grade, combos$year, sep="_")
     combos$gradefilter <- ifelse(combos$grade!="All" & (combos$site!="All" | combos$program!="All"), 1, 0)
     write.csv(combos, file = paste0(dataPath, "combos.csv"))
-
-# XXX: Why are there NaN's here?  (And elsewhere in calculated means).  Need to track these anomalies down and check data.
