@@ -42,7 +42,7 @@
     myData <- EnrCpsAcs
     rm(EnrCpsAcs)
     
-    orglist <- c("YMCA", "ASM", "CHASI") # UPDATE HERE AS WE HAVE DATA FOR NEW PARTNERS TO INCLUDE IN TOTALS.
+    orglist <- c("YMCA", "ASM", "CHASI", "UCAN") # UPDATE HERE AS WE HAVE DATA FOR NEW PARTNERS TO INCLUDE IN TOTALS.
     
   } 
 
