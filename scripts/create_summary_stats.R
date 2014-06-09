@@ -160,16 +160,16 @@
     stats.byOrgGr   <- runStats(data = calcData, byVars = c(myOrg, "all" , "all"    , "fGradeLvl"         , "year"), myVars = descVars)
     stats.bySite    <- runStats(data = calcData, byVars = c(myOrg, "site", "all"    , "all"               , "year"), myVars = descVars)
     stats.byProg    <- runStats(data = calcData, byVars = c(myOrg, "all" , "program", "all"               , "year"), myVars = descVars)
-    stats.bySiteGr  <- runStats(data = calcData, byVars = c(myOrg, "site", "all"    , "fGradeLvl"         , "year"), myVars = descVars)
-    stats.bySiteGrp <- runStats(data = calcData, byVars = c(myOrg, "site", "all"    , "fGradeGrp_K5_68_HS", "year"), myVars = descVars)
-    stats.byProgGr  <- runStats(data = calcData, byVars = c(myOrg, "all" , "program", "fGradeLvl"         , "year"), myVars = descVars)
-    stats.byProgGrp <- runStats(data = calcData, byVars = c(myOrg, "all" , "program", "fGradeGrp_K5_68_HS", "year"), myVars = descVars)
-    stats.org       <- rbind(stats.org, stats.byOrg, stats.bySite, stats.byProg, stats.byOrgGr, stats.bySiteGr, stats.byOrgGrp, stats.bySiteGrp, stats.byProgGr, stats.byProgGrp)
+#     stats.bySiteGr  <- runStats(data = calcData, byVars = c(myOrg, "site", "all"    , "fGradeLvl"         , "year"), myVars = descVars)
+#     stats.bySiteGrp <- runStats(data = calcData, byVars = c(myOrg, "site", "all"    , "fGradeGrp_K5_68_HS", "year"), myVars = descVars)
+#     stats.byProgGr  <- runStats(data = calcData, byVars = c(myOrg, "all" , "program", "fGradeLvl"         , "year"), myVars = descVars)
+#     stats.byProgGrp <- runStats(data = calcData, byVars = c(myOrg, "all" , "program", "fGradeGrp_K5_68_HS", "year"), myVars = descVars)
+     stats.org       <- rbind(stats.org, stats.byOrg, stats.bySite, stats.byProg, stats.byOrgGrp, stats.byOrgGr) #stats.bySiteGr, stats.bySiteGrp, stats.byProgGr, stats.byProgGrp)
     }      # No longer assembling individual datasets by org to avoid hardcoding org names (using flexibility of orglist)
   
   colnames(stats.org)[1:5] <- c("org", "site", "program", "grade", "year")
 
-  rm(stats.byOrg, stats.byOrgGrp, stats.byOrgGr, stats.bySite, stats.byProg, stats.bySiteGr, stats.bySiteGrp, stats.byProgGr, stats.byProgGrp)
+  rm(stats.byOrg, stats.byOrgGrp, stats.byOrgGr, stats.bySite, stats.byProg) # stats.bySiteGr, stats.bySiteGrp, stats.byProgGr, stats.byProgGrp)
 
   
 #----------------------------------------------------------------------------
@@ -313,10 +313,15 @@
 
     stats.peers$site <- paste(stats.peers$site, "Sch-Based Peers")
 
+    
+## Compile and save output
+
     descStats    <- rbind(stats.org[, colnames(stats.peers)], stats.peers)
     descStats$plusminus <- descStats$se_mean * 1.96
     descStats$id <- paste(descStats$org, descStats$site, descStats$program, descStats$grade, descStats$year, descStats$variable, sep="_")
-    
+    descStats$plusminus[descStats$n<10] <- NA
+    descStats$mu[descStats$n<10] <- NA
+
     save(descStats, file = paste0(dataPath, "descStats.Rda"))
     write.csv(descStats, file = paste0(dataPath, "descStats.csv"))
 
