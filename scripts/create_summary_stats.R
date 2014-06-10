@@ -112,13 +112,15 @@
     # If we'll be looking at program or site level variation, will only be working with one org:
     if(all(byVars[2:3]=="all")) {
       useData <- data
+    } else if (byVars[[1]] %in% orglist) {
+      useData <- data[data$org==byVars[[1]], ]
     } else {
-      useData <- data[!grepl("Non", data[,byVars[1]]), ]
+      useData <- data
     }
-
+    
     # Then, determine what other by variables are needed - one line per student/by variable
     toFilter <- sapply(byVars, function(x) x != 'all')
-    filterVars <- as.character(byVars[toFilter])
+    filterVars <- c(as.character(byVars[toFilter]))
     keepRows <- !duplicated(useData[,c("sid", filterVars)])
     useData <- useData[keepRows,]
     
