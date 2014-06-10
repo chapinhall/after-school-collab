@@ -23,12 +23,13 @@
   library(ggplot2)
   library(scales)
 
-  allOrgs <- c("YMCA", "ASM", "CHASI", "Collab")
+  allOrgs <- c("YMCA", "ASM", "CHASI", "UCAN", "Collab")
   
-  YMCAfill  <- c("#ED1C24", "#92278F", "#0089D0", "#F47920", "01A490") # hex codes from YMCA standards (http://marketingfrankenstein.weebly.com/uploads/6/9/2/0/6920095/graphic_standards_for_3rd_parties.pdf)
-  ASMfill <- c("#3F227C", "#A4B635", "#211F21") # purple, lime, and grey - hex codes from ASM website
-  CHASIfill <- c("#4F91CE", "#78A360", "#FAAF5E") #light blue, green, orange - hex codes from CH+A website
-  Collabfill <- c("#000053", "#8F162B", "#A0A1A3")
+  YMCAfill    <- c("#ED1C24", "#92278F", "#0089D0", "#F47920", "01A490") # hex codes from YMCA standards (http://marketingfrankenstein.weebly.com/uploads/6/9/2/0/6920095/graphic_standards_for_3rd_parties.pdf)
+  ASMfill     <- c("#3F227C", "#A4B635", "#211F21") # purple, lime, and grey - hex codes from ASM website
+  CHASIfill   <- c("#4F91CE", "#78A360", "#FAAF5E") #light blue, green, orange - hex codes from CH+A website
+  UCANfill    <- c("#006854", "#5C3D87", "#CDDA44", "#5A5A5A") #dark teal, purple, lime, gray 
+  Collabfill  <- c("#000053", "#8F162B", "#A0A1A3")
   OrgvOrgfill <- c("#000053", "#8F162B", "#A0A1A3", "#DA5F45", "#005555", "#000000")
   # Chapin Colors: navy, maroon, grey, coral, teal, black
 
@@ -143,7 +144,7 @@
     
     # Print dataset for debugging purposes (remove this once all is final)
     
-        print(data)
+       # print(data)
     
     # Define the fill value as a part of the data frame (aes.fill can only equal a variable in the df)
     
@@ -224,25 +225,25 @@
   
   # Samples of function in action - this code can be removed eventually
   
-  # Continuous Plot - for one org, multiple orgs, one site, and multiple sites
-  makePlot("bLunch_FR", orgnames = "YMCA", title = "% Free/Reduced Price Lunch", ylab = 'Proportion on Free/Reduced Price Lunch', years = '2013')
-  makePlot("bLunch_FR", orgnames = c("ASM", "CHASI", "YMCA"), orgcomp = 0, title = "% Free/Reduced Price Lunch", ylab = 'Proportion on Free/Reduced Price Lunch')
-  makePlot("bLunch_FR", orgnames = "Collab", title = "% Free/Reduced Price Lunch", ylab = 'Proportion on Free/Reduced Price Lunch')
-  makePlot("bLunch_FR", orgnames = "YMCA", sitenames = "High Ridge", title = "% Free/Reduced Price Lunch", ylab = 'Proportion on Free/Reduced Price Lunch', years = '2013')
-  makePlot("bLunch_FR", orgnames = "ASM", prognames = c("Gallery","Words","Site C"), title = "% Free/Reduced Price Lunch", ylab = 'Proportion on Free/Reduced Price Lunch', years = '2012')
-    # Note that we'll need a different plot format for more than 3 or so sites - really need labelled axis rather than relying on fill
-
-  # Categorical Plot - same four options
-  makePlot(title = 'Math Test Scores', VarList = c("isat_mathpl_W","isat_mathpl_B","isat_mathpl_M","isat_mathpl_E"), xnames = c("Warning","Below","Meets","Exceeds"), orgnames="CHASI")
-  makePlot(title = 'Math Test Scores', orgcomp = 0, VarList = c("isat_mathpl_W","isat_mathpl_B","isat_mathpl_M","isat_mathpl_E"), xnames = c("Warning","Below","Meets","Exceeds"), orgnames=c("YMCA", "CHASI"))
-  makePlot(title = 'Math Test Scores', orgnames = 'Collab', VarList = c("isat_mathpl_W","isat_mathpl_B","isat_mathpl_M","isat_mathpl_E"), xnames = c("Warning","Below","Meets","Exceeds"))
-  makePlot(title = 'Math Test Scores', VarList = c("isat_mathpl_W","isat_mathpl_B","isat_mathpl_M","isat_mathpl_E"), xnames = c("Warning","Below","Meets","Exceeds"), orgnames=c("ASM"), prognames = "Gallery")
-  makePlot(title = 'Math Test Scores', VarList = c("isat_mathpl_W","isat_mathpl_B","isat_mathpl_M","isat_mathpl_E"), xnames = c("Warning","Below","Meets","Exceeds"), orgnames=c("YMCA"), sitenames = c("South Side", "Lake View", "Irving Park"), sitecomp = 0)
-
-  # Plotting Over Time
-  makePlot("bLunch_FR", orgnames = "CHASI", title = "% Free/Reduced Price Lunch", ylab = 'Proportion on Free/Reduced Price Lunch', years = c("2012", "2013"))    
-  makePlot("bLunch_FR", orgnames = c("CHASI", "YMCA", "ASM", "Collab"), orgcomp = 0, title = "% Free/Reduced Price Lunch", ylab = 'Proportion on Free/Reduced Price Lunch', years = c("2012", "2013"))
-  makePlot("bLunch_FR", orgnames = "Collab", title = "% Free/Reduced Price Lunch", ylab = 'Proportion on Free/Reduced Price Lunch', years = c("2012", "2013"))
+#   # Continuous Plot - for one org, multiple orgs, one site, and multiple sites
+#   makePlot("bLunch_FR", orgnames = "YMCA", title = "% Free/Reduced Price Lunch", ylab = 'Proportion on Free/Reduced Price Lunch', years = '2013')
+#   makePlot("bLunch_FR", orgnames = c("ASM", "CHASI", "YMCA"), orgcomp = 0, title = "% Free/Reduced Price Lunch", ylab = 'Proportion on Free/Reduced Price Lunch')
+#   makePlot("bLunch_FR", orgnames = "Collab", title = "% Free/Reduced Price Lunch", ylab = 'Proportion on Free/Reduced Price Lunch')
+#   makePlot("bLunch_FR", orgnames = "YMCA", sitenames = "High Ridge", title = "% Free/Reduced Price Lunch", ylab = 'Proportion on Free/Reduced Price Lunch', years = '2013')
+#   makePlot("bLunch_FR", orgnames = "ASM", prognames = c("Gallery","Words","Site C"), title = "% Free/Reduced Price Lunch", ylab = 'Proportion on Free/Reduced Price Lunch', years = '2012')
+#     # Note that we'll need a different plot format for more than 3 or so sites - really need labelled axis rather than relying on fill
+# 
+#   # Categorical Plot - same four options
+#   makePlot(title = 'Math Test Scores', VarList = c("isat_mathpl_W","isat_mathpl_B","isat_mathpl_M","isat_mathpl_E"), xnames = c("Warning","Below","Meets","Exceeds"), orgnames="CHASI")
+#   makePlot(title = 'Math Test Scores', orgcomp = 0, VarList = c("isat_mathpl_W","isat_mathpl_B","isat_mathpl_M","isat_mathpl_E"), xnames = c("Warning","Below","Meets","Exceeds"), orgnames=c("YMCA", "CHASI"))
+#   makePlot(title = 'Math Test Scores', orgnames = 'Collab', VarList = c("isat_mathpl_W","isat_mathpl_B","isat_mathpl_M","isat_mathpl_E"), xnames = c("Warning","Below","Meets","Exceeds"))
+#   makePlot(title = 'Math Test Scores', VarList = c("isat_mathpl_W","isat_mathpl_B","isat_mathpl_M","isat_mathpl_E"), xnames = c("Warning","Below","Meets","Exceeds"), orgnames=c("ASM"), prognames = "Gallery")
+#   makePlot(title = 'Math Test Scores', VarList = c("isat_mathpl_W","isat_mathpl_B","isat_mathpl_M","isat_mathpl_E"), xnames = c("Warning","Below","Meets","Exceeds"), orgnames=c("YMCA"), sitenames = c("South Side", "Lake View", "Irving Park"), sitecomp = 0)
+# 
+#   # Plotting Over Time
+#   makePlot("bLunch_FR", orgnames = "CHASI", title = "% Free/Reduced Price Lunch", ylab = 'Proportion on Free/Reduced Price Lunch', years = c("2012", "2013"))    
+#   makePlot("bLunch_FR", orgnames = c("CHASI", "YMCA", "ASM", "Collab"), orgcomp = 0, title = "% Free/Reduced Price Lunch", ylab = 'Proportion on Free/Reduced Price Lunch', years = c("2012", "2013"))
+#   makePlot("bLunch_FR", orgnames = "Collab", title = "% Free/Reduced Price Lunch", ylab = 'Proportion on Free/Reduced Price Lunch', years = c("2012", "2013"))
 
   
 ######  Define Variable-Specific Criteria #########
