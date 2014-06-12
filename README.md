@@ -22,6 +22,7 @@ In cooperation with large non-profit organizations (NPO) and public agencies, Ch
 
 ### Current agency partners contributing data are:
 * Chicago Public Schools
+* Department of Child and Family Services
 
 Because the data on youth characteristics and outcomes are strongly protected by privacy laws, this repository stores only the code used to analyze and create reports based off of the data. In the future, a mock data set with the features of the real data set may be posted to allow collaborators to develop code to contribute to the project.
 
