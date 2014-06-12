@@ -321,8 +321,10 @@
     descStats    <- rbind(stats.org[, colnames(stats.peers)], stats.peers)
     descStats$plusminus <- descStats$se_mean * 1.96
     descStats$id <- paste(descStats$org, descStats$site, descStats$program, descStats$grade, descStats$year, descStats$variable, sep="_")
-    descStats$plusminus[descStats$n<10] <- NA
-    descStats$mu[descStats$n<10] <- NA
+    descStats$plusminus[descStats$n  < 10] <- NA
+    descStats$plusminus[descStats$n == NA] <- NA
+    descStats$mean[descStats$n  < 10]      <- NA
+    descStats$mean[descStats$n == NA]      <- NA
 
     save(descStats, file = paste0(dataPath, "descStats.Rda"))
     write.csv(descStats, file = paste0(dataPath, "descStats.csv"))
