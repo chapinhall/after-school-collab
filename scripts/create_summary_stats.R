@@ -69,7 +69,8 @@
                 grep("psae_",     cNames, value=T),
                 grep("bRace",     cNames, value=T),
                 grep("bLunch",    cNames, value=T),
-                grep("Tract_",    cNames, value=T))
+                grep("Tract_",    cNames, value=T),
+                grep("MVMS_.+[^se]$", cNames, value=T)) # This gets anything that starts with "MVMS", and doesn't end with "se"
                 #grep("MVMS_",     cNames, value=T)) # "bHsGrad", 
 
   # Create dummy variables of catVar values to be treated as continuous vars
@@ -216,7 +217,7 @@
         } else if(subvar == "grade") {
           
           # Separate handling for grade ranges versus individual grade levels
-          if (subval %in% c("K-5", "6-8", "HS")){
+          if (subval %in% c("K-5", "Gr6-8", "HS")){
             return(calcData$fGradeGrp_K5_68_HS == subval)
           } else {
             return(calcData$fGradeLvl == subval)
@@ -328,8 +329,20 @@
 
     save(descStats, file = paste0(dataPath, "descStats.Rda"))
     write.csv(descStats, file = paste0(dataPath, "descStats.csv"))
+    #descStats <- read.csv(paste0(dataPath, "descStats.csv"))
 
     combos <- unique(descStats[, c("org", "site", "program", "grade", "year")])
     combos$id <- paste(combos$org, combos$site, combos$program, combos$grade, combos$year, sep="_")
     combos$gradefilter <- ifelse(combos$grade!="All" & (combos$site!="All" | combos$program!="All"), 1, 0)
-    write.csv(combos, file = paste0(dataPath, "combos.csv"))
+    rownames(combos) <- NULL
+
+    orgYearCombos <- data.frame(unique(combos[!grepl("Non-", combos$org), c("org", "year")]))
+      colnames(orgYearCombos) <- c("org", "year")
+    orgCombos <- data.frame(org=unique(orgYearCombos[, c("org")]))
+
+    for (f in c("combos", "orgYearCombos", "orgCombos")){
+      d <- get(f); rownames(d) <- NULL
+      write.csv(d, file = paste0(dataPath, f %&% ".csv"))
+    }
+    
+    
