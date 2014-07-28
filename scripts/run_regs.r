@@ -63,7 +63,7 @@
     # Regressors
       raceXs <- grep("bRace", cn(d_pp), value = T)
         raceXs <- raceXs[-which(raceXs %in% c("bRace_W", "bRace_NonW"))]
-      regVars <- c("bLunch_F", "bLunch_R", raceXs, "bGender_Female", "bIEP", "Tract_ViolentCrimes_PerHundr", "Tract_Pct_IncRatKidsLt6_Lt185", "Tract_Pct_NonEnglLangSpokenAtHome")
+      regVars <- c("bLunch_F", "bLunch_R", raceXs, "bGender_Female", "bIEP", "Tract_ViolentCrimes_PerHundr", "Tract_Pct_IncRatKidsLt6_Lt100", "Tract_Pct_NonEnglLangSpokenAtHome")
       lagXs <- c("Pct_Attend100_lag", "isat_mathss_lag", "isat_readss_lag")
       mvmsXs <- grep("MVMS_.+[^e]$", cn(d_pp), value = T)
     # Treatment vars
@@ -194,7 +194,7 @@
         if (myG >= 6 | myG == "All") Xs <- c(Xs, mvmsXs)
         d <- d_sub[d_sub$nGradeLvl == myG, ]
         
-        b <-  runLms(myData = d, myY = "Pct_Attend100", myLabel = myG, myTrt = trtVars, myXs = Xs,
+        b <-  runLms(myData = d, myY = "Pct_Attend", myLabel = myG, myTrt = trtVars, myXs = Xs,
                      lagXs = c("Pct_Attend100_lag"))
         attendOut <- rbind(attendOut, b)
       }
