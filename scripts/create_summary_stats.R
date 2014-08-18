@@ -105,94 +105,85 @@
   ## Establish a function to calculate mean, variance, N and se by arbitrary subgroups
 
   # byOrgVar=""; byProgramVar=""; bySiteVar=""; byGradeVar=""; byYearVar=""; byOrgVar = "Collab"; byYearVar = "year"
-
+  fnCount <- function(x) sum(!is.na(x))
   runStats <- function(byOrgVar="", byProgramVar="", bySiteVar="", byGradeVar="", byYearVar=""){
 
     # If we'll be looking at program or site level variation, discard "non-<that site/thatprog" records:
-    if(byProgramVar=="" & bySiteVar=="") {
-      useData <- calcData
-    } else if (byOrgVar %in% orglist) { 
-      useData <- calcData[calcData$org==byOrgVar, ]
-    } else { # XXX Can't recall what cases fall here
-      useData <- calcData
-    }
-    
+      if(byProgramVar=="" & bySiteVar=="") {
+        useData <- calcData
+      } else if (byOrgVar %in% orglist) { 
+        useData <- calcData[calcData$org==byOrgVar, ]
+      } else { # XXX Can't recall what cases fall here
+        useData <- calcData
+      }
+      
     # Then, determine what other by variables are needed - one line per student/by variable
-    allBys <- c(byOrgVar, byProgramVar, bySiteVar, byGradeVar, byYearVar)
-    byVars <- allBys[allBys!=""]
-    keepRows <- !duplicated(useData[,c("sid", byVars)])
-    useData <- useData[keepRows,]
+      allBys <- c(byOrgVar, byProgramVar, bySiteVar, byGradeVar, byYearVar)
+      byVars <- allBys[allBys!=""]
+      keepRows <- !duplicated(useData[,c("sid", byVars)])
+      useData <- useData[keepRows,]
     
     # Calculate various summary statistics
-#     byList <- lapply(byVars, function(x) useData[, x])
-#     system.time({
-#       myMeans <- aggregate(useData[, myVars], byList, mean, na.rm=T)
-#       myS2    <- aggregate(useData[, myVars], byList, function(x) var(x, na.rm=T))
-#       myNs    <- aggregate(useData[, myVars], byList, function(x) sum(!is.na(x)))
-#       myMeans$stat <- "mean"; myS2$stat <- "var"; myNs$stat <- "n"
-#     })
-    system.time({
       q <- unique(byVars)
       qStr <- paste(q, collapse = ",")
       useDt <- data.table(useData, key = qStr)
       
-      fnCount <- function(x) sum(!is.na(x))
       dtMeans <- useDt[, lapply(.SD, mean, na.rm=T), by = qStr, .SDcols = descVars]
       dtS2    <- useDt[, lapply(.SD, var, na.rm=T),  by = qStr, .SDcols = descVars]
       dtNs    <- useDt[, lapply(.SD, fnCount),       by = qStr, .SDcols = descVars]
       dtMeans$stat <- "mean"; dtS2$stat <- "var"; dtNs$stat <- "n"
-    })
-    stack <- rbind(dtMeans, dtS2, dtNs)
+      stack <- rbind(dtMeans, dtS2, dtNs)
     
+    # Pseudo-code for school-based peers
+      # Identify schools and proportions for the current by's
+      # Subset the main data to 
+      
     # Reshape the data set to have records by byVars, and statistics going across
-    # XXX This could probably be done by sequential merges after the calculations, but this code is just about as short
-    longstack <- melt(stack, id=c(byVars, "stat"))
-    out <- cast(longstack, as.formula(paste0(paste(c(byVars, "variable"), collapse="+"), "~ stat")))
-    out$sd <- sqrt(out$var)
-    out$var_mean <- out$var / out$n
-    out$se_mean <- sqrt(out$var_mean)
+      longstack <- melt(stack, id=c(byVars, "stat"))
+      out <- cast(longstack, as.formula(paste0(paste(c(byVars, "variable"), collapse="+"), "~ stat")))
+      out$sd <- sqrt(out$var)
+      out$var_mean <- out$var / out$n
+      out$se_mean <- sqrt(out$var_mean)
 
     # Generate uniform output columns
-    outBys <- c("org", "site", "program", "grade", "year")
-    for (outCol in outBys){
-      colVar <- paste0("by", prop.case(outCol), "Var")
-      if (get(colVar) == ""){
-        out[, outCol] <- "all"
-      } else {
-        out[, outCol] <- out[ get(colVar)]
+      outBys <- c("org", "site", "program", "grade", "year")
+      for (outCol in outBys){
+        colVar <- paste0("by", prop.case(outCol), "Var")
+        if (get(colVar) == ""){
+          out[, outCol] <- "all"
+        } else {
+          out[, outCol] <- out[ get(colVar)]
+        }
       }
-    }
-    # Keep only final by-vars and calculations
-    out <- out[, c(outBys, "variable", "mean", "n", "var", "sd", "var_mean", "se_mean")]
     
-    return(out)
+    # Keep only final by-vars and calculations
+      out <- out[, c(outBys, "variable", "mean", "n", "var", "sd", "var_mean", "se_mean")]
+      return(out)
   }
-
 
   # Run Calculations across various summary levels
-  # Pseudocode: want to supply actual by variables. At the back end, want to categorize those into a narrower set of names
-  #   Most readable solution may be to separate arguments to fn as byOrg, byProg, bySite, etc, and default those to blank.
-  print("Initiating calculations for full collaborative")
-  stats.byCollab    <- runStats(byOrgVar = "Collab", byYearVar = "year")
-  stats.byCollabGr  <- runStats(byOrgVar = "Collab", byYearVar = "year", byGradeVar = "fGradeLvl")
-  stats.byCollabGrp <- runStats(byOrgVar = "Collab", byYearVar = "year", byGradeVar = "fGradeGrp_K5_68_HS")
-  stats.collab      <- rbind(stats.byCollab, stats.byCollabGr, stats.byCollabGrp)    
-
-  stats.org          <- stats.collab
-  rm(stats.collab, stats.byCollab, stats.byCollabGr, stats.byCollabGrp)
-
-  for (myOrg in orglist){
-    print(paste0("Initiating calculations for ", myOrg))
-    stats.byOrg     <- runStats(byOrgVar = myOrg, byYearVar = "year")
-    stats.byOrgGrp  <- runStats(byOrgVar = myOrg, byYearVar = "year", byGradeVar = "fGradeGrp_K5_68_HS")
-    stats.byOrgGr   <- runStats(byOrgVar = myOrg, byYearVar = "year", byGradeVar = "fGradeLvl")
-    stats.bySite    <- runStats(byOrgVar = myOrg, byYearVar = "year", bySiteVar = "site")
-    stats.byProg    <- runStats(byOrgVar = myOrg, byYearVar = "year", byProgramVar = "program")
-    stats.org       <- rbind(stats.org, stats.byOrg, stats.bySite, stats.byProg, stats.byOrgGrp, stats.byOrgGr) #stats.bySiteGr, stats.bySiteGrp, stats.byProgGr, stats.byProgGrp)
-  }
+    print("Initiating calculations for full collaborative")
+    stats.byCollab    <- runStats(byOrgVar = "Collab", byYearVar = "year")
+    stats.byCollabGr  <- runStats(byOrgVar = "Collab", byYearVar = "year", byGradeVar = "fGradeLvl")
+    stats.byCollabGrp <- runStats(byOrgVar = "Collab", byYearVar = "year", byGradeVar = "fGradeGrp_K5_68_HS")
+    stats.collab      <- rbind(stats.byCollab, stats.byCollabGr, stats.byCollabGrp)    
   
-  colnames(stats.org)[1:5] <- c("org", "site", "program", "grade", "year")
+    stats.org          <- stats.collab
+    rm(stats.collab, stats.byCollab, stats.byCollabGr, stats.byCollabGrp)
 
+    # Run statistics for each partner organizations
+    for (myOrg in orglist){
+      print(paste0("Initiating calculations for ", myOrg))
+      stats.byOrg     <- runStats(byOrgVar = myOrg, byYearVar = "year")
+      stats.byOrgGrp  <- runStats(byOrgVar = myOrg, byYearVar = "year", byGradeVar = "fGradeGrp_K5_68_HS")
+      stats.byOrgGr   <- runStats(byOrgVar = myOrg, byYearVar = "year", byGradeVar = "fGradeLvl")
+      stats.bySite    <- runStats(byOrgVar = myOrg, byYearVar = "year", bySiteVar = "site")
+      stats.byProg    <- runStats(byOrgVar = myOrg, byYearVar = "year", byProgramVar = "program")
+      stats.org       <- rbind(stats.org, stats.byOrg, stats.bySite, stats.byProg, stats.byOrgGrp, stats.byOrgGr) #stats.bySiteGr, stats.bySiteGrp, stats.byProgGr, stats.byProgGrp)
+    }
+    
+  colnames(stats.org)[1:5] <- c("org", "site", "program", "grade", "year")
+  
   rm(stats.byOrg, stats.byOrgGrp, stats.byOrgGr, stats.bySite, stats.byProg) # stats.bySiteGr, stats.bySiteGrp, stats.byProgGr, stats.byProgGrp)
 
   
@@ -268,6 +259,19 @@
     #    where the s2_{\bar{X_@}} is the variance of the mean statistics (in contrast to the variance of the X's). This is
     #    the variance that was calculated in the runStats() function above.
   
+
+  # # # New code for calculating 
+  # Distinction is: we will now leave out the students themselves from the calculations, and
+  #   will speed calculations using data.table(). The use of data.table() also means that we
+  #   will handle calculations separately
+
+  # Current 
+
+###########################################################################################
+# OLD PEER CALCULATIONS CODE
+###########################################################################################
+
+
     peerStats.fn <- function(myProps, myVar, mySchStats){
       
       stats.props <- merge(mySchStats, myProps, by = "sch")  # merge proportions into school-level stats data
