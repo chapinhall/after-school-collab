@@ -19,10 +19,15 @@
 
   library("reshape")
   #library("plyr")
-  #library("data.table")
+  library("data.table")
   ep <- function(x){ eval(parse(TEXT = x))}
   "%&%" <- function(...) { paste(..., sep="")}
   paste0 <- function(...) { paste(..., sep="")}
+  prop.case = function(str) { # Thanks to John Myles White http://www.johnmyleswhite.com/notebook/2009/02/25/text-processing-in-r/
+    substr(str, 1, 1) = toupper(substr(str, 1, 1))
+    return(str)
+  }
+  cn <- function(x) colnames(x) # Just creates a short alias for getting column names
   
   useScrambledData <- 0
 
@@ -96,88 +101,95 @@
 ## Calculate summary statistics
 #------------------------------
 #------------------------------
-
-  calcData$all <- "All" # This creates a single "category" to allow us to specify an "all-in" calculation rather than a subset
   
   ## Establish a function to calculate mean, variance, N and se by arbitrary subgroups
 
-  ###First, we need to designate our by variables and filters.  See Google Drive "Desired Summary Stats" for reference.
-      # ByVars1 -> ORG: set to "Org", "Collab", or one of the Org values (for comparing that org to not that org) - never makes sense to set this to all
-      # ByVars2 -> SITE: ALL or site
-      # ByVars3 -> PROGRAM: ALL or program
-      # ByVars4 -> GRADE: ALL or grade
-      # ByVars5 -> YEAR: ALL or year
+  # byOrgVar=""; byProgramVar=""; bySiteVar=""; byGradeVar=""; byYearVar=""; byOrgVar = "Collab"; byYearVar = "year"
 
-  runStats <- function(data, byVars, myVars){
+  runStats <- function(byOrgVar="", byProgramVar="", bySiteVar="", byGradeVar="", byYearVar=""){
 
-    # If we'll be looking at program or site level variation, will only be working with one org:
-    if(all(byVars[2:3]=="all")) {
-      useData <- data
-    } else if (byVars[[1]] %in% orglist) {
-      useData <- data[data$org==byVars[[1]], ]
-    } else {
-      useData <- data
+    # If we'll be looking at program or site level variation, discard "non-<that site/thatprog" records:
+    if(byProgramVar=="" & bySiteVar=="") {
+      useData <- calcData
+    } else if (byOrgVar %in% orglist) { 
+      useData <- calcData[calcData$org==byOrgVar, ]
+    } else { # XXX Can't recall what cases fall here
+      useData <- calcData
     }
     
     # Then, determine what other by variables are needed - one line per student/by variable
-    toFilter <- sapply(byVars, function(x) x != 'all')
-    filterVars <- c(as.character(byVars[toFilter]))
-    keepRows <- !duplicated(useData[,c("sid", filterVars)])
+    allBys <- c(byOrgVar, byProgramVar, bySiteVar, byGradeVar, byYearVar)
+    byVars <- allBys[allBys!=""]
+    keepRows <- !duplicated(useData[,c("sid", byVars)])
     useData <- useData[keepRows,]
     
     # Calculate various summary statistics
-    byList <- lapply(byVars, function(x) useData[, x])
+#     byList <- lapply(byVars, function(x) useData[, x])
+#     system.time({
+#       myMeans <- aggregate(useData[, myVars], byList, mean, na.rm=T)
+#       myS2    <- aggregate(useData[, myVars], byList, function(x) var(x, na.rm=T))
+#       myNs    <- aggregate(useData[, myVars], byList, function(x) sum(!is.na(x)))
+#       myMeans$stat <- "mean"; myS2$stat <- "var"; myNs$stat <- "n"
+#     })
     system.time({
-      myMeans <- aggregate(useData[, myVars], byList, mean, na.rm=T)
-      myS2    <- aggregate(useData[, myVars], byList, function(x) var(x, na.rm=T))
-      myNs    <- aggregate(useData[, myVars], byList, function(x) sum(!is.na(x)))
-      myMeans$stat <- "mean"; myS2$stat <- "var"; myNs$stat <- "n"
+      q <- unique(byVars)
+      qStr <- paste(q, collapse = ",")
+      useDt <- data.table(useData, key = qStr)
+      
+      fnCount <- function(x) sum(!is.na(x))
+      dtMeans <- useDt[, lapply(.SD, mean, na.rm=T), by = qStr, .SDcols = descVars]
+      dtS2    <- useDt[, lapply(.SD, var, na.rm=T),  by = qStr, .SDcols = descVars]
+      dtNs    <- useDt[, lapply(.SD, fnCount),       by = qStr, .SDcols = descVars]
+      dtMeans$stat <- "mean"; dtS2$stat <- "var"; dtNs$stat <- "n"
     })
-    system.time({
-      setkey(useData, parse(text = paste(byVars, sep=",")))
-      myMeans <- aggregate(useData[, myVars], byList, mean, na.rm=T)
-      myS2    <- aggregate(useData[, myVars], byList, function(x) var(x, na.rm=T))
-      myNs    <- aggregate(useData[, myVars], byList, function(x) sum(!is.na(x)))
-      myMeans$stat <- "mean"; myS2$stat <- "var"; myNs$stat <- "n"
-    })
-    stack <- rbind(myMeans, myS2, myNs)
+    stack <- rbind(dtMeans, dtS2, dtNs)
     
     # Reshape the data set to have records by byVars, and statistics going across
     # XXX This could probably be done by sequential merges after the calculations, but this code is just about as short
-    byNames <- grep("Group.", colnames(stack), value = T)
-    longstack <- melt(stack, id=c(byNames, "stat"))
-    out <- cast(longstack, as.formula(paste0(paste(c(byNames, "variable"), collapse="+"), "~ stat")))
+    longstack <- melt(stack, id=c(byVars, "stat"))
+    out <- cast(longstack, as.formula(paste0(paste(c(byVars, "variable"), collapse="+"), "~ stat")))
     out$sd <- sqrt(out$var)
     out$var_mean <- out$var / out$n
     out$se_mean <- sqrt(out$var_mean)
+
+    # Generate uniform output columns
+    outBys <- c("org", "site", "program", "grade", "year")
+    for (outCol in outBys){
+      colVar <- paste0("by", prop.case(outCol), "Var")
+      if (get(colVar) == ""){
+        out[, outCol] <- "all"
+      } else {
+        out[, outCol] <- out[ get(colVar)]
+      }
+    }
+    # Keep only final by-vars and calculations
+    out <- out[, c(outBys, "variable", "mean", "n", "var", "sd", "var_mean", "se_mean")]
+    
     return(out)
   }
 
 
   # Run Calculations across various summary levels
-
+  # Pseudocode: want to supply actual by variables. At the back end, want to categorize those into a narrower set of names
+  #   Most readable solution may be to separate arguments to fn as byOrg, byProg, bySite, etc, and default those to blank.
   print("Initiating calculations for full collaborative")
-  stats.byCollab     <- runStats(data = calcData, byVars = c("Collab", "all" , "all"    , "all"               , "year"), myVars = descVars); print("The big all-in calculation has been completed")
-  stats.byCollabGr   <- runStats(data = calcData, byVars = c("Collab", "all" , "all"    , "fGradeLvl"         , "year"), myVars = descVars)
-  stats.byCollabGrp  <- runStats(data = calcData, byVars = c("Collab", "all" , "all"    , "fGradeGrp_K5_68_HS", "year"), myVars = descVars)
-  stats.collab       <- rbind(stats.byCollab, stats.byCollabGr, stats.byCollabGrp)    
+  stats.byCollab    <- runStats(byOrgVar = "Collab", byYearVar = "year")
+  stats.byCollabGr  <- runStats(byOrgVar = "Collab", byYearVar = "year", byGradeVar = "fGradeLvl")
+  stats.byCollabGrp <- runStats(byOrgVar = "Collab", byYearVar = "year", byGradeVar = "fGradeGrp_K5_68_HS")
+  stats.collab      <- rbind(stats.byCollab, stats.byCollabGr, stats.byCollabGrp)    
 
   stats.org          <- stats.collab
   rm(stats.collab, stats.byCollab, stats.byCollabGr, stats.byCollabGrp)
 
   for (myOrg in orglist){
     print(paste0("Initiating calculations for ", myOrg))
-    stats.byOrg     <- runStats(data = calcData, byVars = c(myOrg, "all" , "all"    , "all"               , "year"), myVars = descVars); print("The big all-in calculation has been completed")
-    stats.byOrgGrp  <- runStats(data = calcData, byVars = c(myOrg, "all" , "all"    , "fGradeGrp_K5_68_HS", "year"), myVars = descVars)
-    stats.byOrgGr   <- runStats(data = calcData, byVars = c(myOrg, "all" , "all"    , "fGradeLvl"         , "year"), myVars = descVars)
-    stats.bySite    <- runStats(data = calcData, byVars = c(myOrg, "site", "all"    , "all"               , "year"), myVars = descVars)
-    stats.byProg    <- runStats(data = calcData, byVars = c(myOrg, "all" , "program", "all"               , "year"), myVars = descVars)
-#     stats.bySiteGr  <- runStats(data = calcData, byVars = c(myOrg, "site", "all"    , "fGradeLvl"         , "year"), myVars = descVars)
-#     stats.bySiteGrp <- runStats(data = calcData, byVars = c(myOrg, "site", "all"    , "fGradeGrp_K5_68_HS", "year"), myVars = descVars)
-#     stats.byProgGr  <- runStats(data = calcData, byVars = c(myOrg, "all" , "program", "fGradeLvl"         , "year"), myVars = descVars)
-#     stats.byProgGrp <- runStats(data = calcData, byVars = c(myOrg, "all" , "program", "fGradeGrp_K5_68_HS", "year"), myVars = descVars)
-     stats.org       <- rbind(stats.org, stats.byOrg, stats.bySite, stats.byProg, stats.byOrgGrp, stats.byOrgGr) #stats.bySiteGr, stats.bySiteGrp, stats.byProgGr, stats.byProgGrp)
-    }      # No longer assembling individual datasets by org to avoid hardcoding org names (using flexibility of orglist)
+    stats.byOrg     <- runStats(byOrgVar = myOrg, byYearVar = "year")
+    stats.byOrgGrp  <- runStats(byOrgVar = myOrg, byYearVar = "year", byGradeVar = "fGradeGrp_K5_68_HS")
+    stats.byOrgGr   <- runStats(byOrgVar = myOrg, byYearVar = "year", byGradeVar = "fGradeLvl")
+    stats.bySite    <- runStats(byOrgVar = myOrg, byYearVar = "year", bySiteVar = "site")
+    stats.byProg    <- runStats(byOrgVar = myOrg, byYearVar = "year", byProgramVar = "program")
+    stats.org       <- rbind(stats.org, stats.byOrg, stats.bySite, stats.byProg, stats.byOrgGrp, stats.byOrgGr) #stats.bySiteGr, stats.bySiteGrp, stats.byProgGr, stats.byProgGrp)
+  }
   
   colnames(stats.org)[1:5] <- c("org", "site", "program", "grade", "year")
 
@@ -199,9 +211,9 @@
   
   # Calculate school means overall and by grade
 
-    stats.bySch    <- runStats(data = calcData, byVars = c("schlid", "all"               , "year"), myVars = descVars)
-    stats.bySchGr  <- runStats(data = calcData, byVars = c("schlid", "fGradeLvl"         , "year"), myVars = descVars)  
-    stats.bySchGrp <- runStats(data = calcData, byVars = c("schlid", "fGradeGrp_K5_68_HS", "year"), myVars = descVars)
+    stats.bySch    <- runStats(byVars = c("schlid", "all"               , "year"))
+    stats.bySchGr  <- runStats(byVars = c("schlid", "fGradeLvl"         , "year"))  
+    stats.bySchGrp <- runStats(byVars = c("schlid", "fGradeGrp_K5_68_HS", "year"))
     
     stats.sch <- rbind(stats.bySch, stats.bySchGr, stats.bySchGrp)
     colnames(stats.sch)[1:3] <- c("sch", "grade", "year") 
