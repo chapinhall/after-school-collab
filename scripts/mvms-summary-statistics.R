@@ -73,10 +73,12 @@
   d_2013 <- d_m[d_m$year == 2013,]
   sapply(mvmsVars, function(m) {
     ggplot(data = d_2013) + 
-      geom_histogram(aes_string(x = m), colour = "black", fill = "white") + # binwidth = 0.5, 
+      geom_histogram(aes_string(x = m), binwidth = 0.5, colour = "black", fill = "white") + # 
       ggtitle("Histogram of " %&% mvmsLabels[m] %&% ",\nAll youth in 2012-13") + 
       geom_vline(xintercept = mean(d_2013[, m], na.rm = T), size = 1, colour = "blue") +
-      scale_y_continuous("Count of Youth in Bin") + scale_x_continuous("Youth Score")
+      scale_y_continuous("Count of Youth") + 
+      scale_x_continuous("Youth Score", limits = c(1, 7), breaks = seq(1, 6.5, 0.5), labels = paste0(sprintf("%2.1f", seq(1, 6.5, 0.5)), " - ", sprintf("%2.1f", seq(1.5, 7, 0.5)))) +
+      theme(axis.text.x = element_text(vjust = +1.75, angle = 90, size = 8))
     ggsave("./output/figures/MVMS Histogram - " %&% m %&% ".png", dpi = 200, width = 4.67, height = 3.5)
   })
   

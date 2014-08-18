@@ -206,10 +206,24 @@
       Xs <- c(regVars, mvmsXs)
       d <- d_sub[d_sub$nGradeLvl == myG, ]
       
-      b <-  runLms(myData = d, myY = "bOnTrack", myLabel = myG, myTrt = trtVars, myXs = myXs,
+      b <-  runLms(myData = d, myY = "bOnTrack", myLabel = myG, myTrt = trtVars, myXs = Xs,
                    lagXs = c("Pct_Attend100_lag", "isat_mathss_lag", "isat_readss_lag"))
       ontrackOut <- b
     
+    # Impacts on MVMS Outcomes
+      mvmsOut <- NULL
+      for (myG in 7:12){
+        for (myMvms in mvmsVars){
+          print(paste0("--> Running Estimation for MVMS for outcome ", y, " and grade ", myG))
+          Xs <- c(regVars) # mvmsXs
+          d <- d_sub[d_sub$nGradeLvl == myG, ]
+          
+          b <-  runLms(myData = d, myY = myMvms, myLabel = paste(myMvms, myG, sep="-"), myTrt = trtVars, myXs = Xs,
+                       lagXs = c("Pct_Attend100_lag", "isat_mathss_lag", "isat_readss_lag"))
+          mvmsOut <- rbind(mvmsOut, b)
+        }
+      }
+      
     # Collect estimates and output
     
       trtOut <- rbind(isatOut, attendOut, ontrackOut)
@@ -224,6 +238,15 @@
   write.csv(estOut, file = "./output/Regression Estimates - multiple outcomes - multiple treatment specs.csv")
   
 
+#---------------------------------------------#
+#---------------------------------------------#
+### Generate displays of regression results ###
+#---------------------------------------------#
+#---------------------------------------------#
+
+  regOut <- read.csv(file = "./output/Regression Estimates - multiple outcomes - multiple treatment specs.csv")
+  
+  
     # Identify sites with 10 or more observations
 #         rowsInReg <- rownames(regData) %in% names(adjReg$residuals)
 #         SiteNs_Reg <- table(regData$fShortSite[rowsInReg])

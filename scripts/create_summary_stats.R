@@ -127,10 +127,19 @@
     
     # Calculate various summary statistics
     byList <- lapply(byVars, function(x) useData[, x])
-    myMeans <- aggregate(useData[, myVars], byList, mean, na.rm=T)
-    myS2    <- aggregate(useData[, myVars], byList, function(x) var(x, na.rm=T))
-    myNs    <- aggregate(useData[, myVars], byList, function(x) sum(!is.na(x)))
-    myMeans$stat <- "mean"; myS2$stat <- "var"; myNs$stat <- "n"
+    system.time({
+      myMeans <- aggregate(useData[, myVars], byList, mean, na.rm=T)
+      myS2    <- aggregate(useData[, myVars], byList, function(x) var(x, na.rm=T))
+      myNs    <- aggregate(useData[, myVars], byList, function(x) sum(!is.na(x)))
+      myMeans$stat <- "mean"; myS2$stat <- "var"; myNs$stat <- "n"
+    })
+    system.time({
+      setkey(useData, parse(text = paste(byVars, sep=",")))
+      myMeans <- aggregate(useData[, myVars], byList, mean, na.rm=T)
+      myS2    <- aggregate(useData[, myVars], byList, function(x) var(x, na.rm=T))
+      myNs    <- aggregate(useData[, myVars], byList, function(x) sum(!is.na(x)))
+      myMeans$stat <- "mean"; myS2$stat <- "var"; myNs$stat <- "n"
+    })
     stack <- rbind(myMeans, myS2, myNs)
     
     # Reshape the data set to have records by byVars, and statistics going across
