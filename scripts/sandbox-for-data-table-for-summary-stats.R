@@ -39,7 +39,7 @@
     }) #2.11 seconds
     system.time(mu.df <- aggregate(cd[, descVars], list(cd$cYMCA, cd$site, cd$year), mean, na.rm=T)) # 32.52 seconds
     
-    #cbind(t(mu.dt), t(mu.df)) # Results look the same
+    #cbind(t(mu.dt), t(mu.df)) # Results lookthe same
     colnames(mu.df)[1:3] <- c("cYMCA", "site", "year")
     z <- merge(mu.df, mu.dt, by = c("cYMCA", "site", "year"))
     for(d in descVars){ #c("bRace_NonW")

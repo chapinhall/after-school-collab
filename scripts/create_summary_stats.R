@@ -129,14 +129,44 @@
       useDt <- data.table(useData, key = qStr)
       
       dtMeans <- useDt[, lapply(.SD, mean, na.rm=T), by = qStr, .SDcols = descVars]
-      dtS2    <- useDt[, lapply(.SD, var, na.rm=T),  by = qStr, .SDcols = descVars]
+      dtS2    <- useDt[, lapply(.SD, var,  na.rm=T), by = qStr, .SDcols = descVars]
       dtNs    <- useDt[, lapply(.SD, fnCount),       by = qStr, .SDcols = descVars]
       dtMeans$stat <- "mean"; dtS2$stat <- "var"; dtNs$stat <- "n"
       stack <- rbind(dtMeans, dtS2, dtNs)
     
+    
+    # Current pseudo-code for school-based peers
+      # Pre-calculate averages by school
+      # Mechanism to call range criteria for appropriate subsets
+      # In function with arguments proportions, variable, data(?): 
+      #   * get school proportion statistics
+      #   * calculate this at the variable-by-variable level (since the variables may have different 
+      #     different respondents, and thus different school proportions)
+      # For  every combination of orgs (setting aside "non-org" values), sites, programs, grades, years
+      #   *AND* variable:
+      #   * Subset the data appropriately, pulling out only the sid's and schoolids
+      #   * Get proportions of schools across individuals
+      #   * Pull up the school average characteristics involved in the current calculation
+      #   * Generate a header to connect the calculations to
+      #   * Loop across variables which are fed into the weighted mean function
+      #   * Bind results together
+    
     # Pseudo-code for school-based peers
-      # Identify schools and proportions for the current by's
-      # Subset the main data to 
+      # Prepare a loop across all combinations within each definition of levels
+      # In each loop, subset down to only the rows which fit those criteria
+      #     (... so far, everything is the same as it is in the prior version, 
+      #     except that we may run things through an lapply() instead of a for)
+      # For each variable:
+      #   1. subset data down further into all non-focal youth; 
+      #   2. calculate summary statistics for each school
+      #   3. calculate proportions of school representation among youth
+      #   4. send this information to the weighted mean function
+      # ... overall, doesn't seem like it's any kind of speed-up, since we have to do every calculation
+      #   as a custom job. Hopefully data.table() keeps the slow-down to a minimum, and wee have good
+      #   off-setting with using the lapply()
+        
+      # Subset the main data to only the schools and 
+    
       
     # Reshape the data set to have records by byVars, and statistics going across
       longstack <- melt(stack, id=c(byVars, "stat"))
@@ -209,7 +239,7 @@
     stats.sch <- rbind(stats.bySch, stats.bySchGr, stats.bySchGrp)
     colnames(stats.sch)[1:3] <- c("sch", "grade", "year") 
     rm(stats.bySch, stats.bySchGr, stats.bySchGrp)
-  
+
 
   #-------------------------
   ## Create Helper Functions
@@ -221,10 +251,9 @@
     #---------
   
       # Because grade and org need special handling, can't use conditions (e.g. "grepl(org, calcData$Org)" where "*" can be passed to org)
-      
+
       getSubset <- function(subvar, subval){
         if (subval == "All"){
-        
           return(calcData$all == calcData$all) # XXX Basically, an inelegant way to return a right-sized vector of "TRUE" values
         } else if(subvar == "grade") {
           
@@ -237,11 +266,11 @@
         } else if(subvar == "org") {
           
           #Separate handling for full collab versus individual orgs
-          if (subval=='Collab') {
-              return(calcData$Collab == subval)
-            } else {
-              return(calcData$org == subval)
-            }
+          if (subval=="Collab") {
+            return(calcData$Collab == subval)
+          } else {
+            return(calcData$org == subval)
+          }
         } else {
           return(calcData[, subvar] == subval) # Identify rows with specifically the right values
         }
@@ -271,7 +300,6 @@
 # OLD PEER CALCULATIONS CODE
 ###########################################################################################
 
-
     peerStats.fn <- function(myProps, myVar, mySchStats){
       
       stats.props <- merge(mySchStats, myProps, by = "sch")  # merge proportions into school-level stats data
@@ -296,8 +324,8 @@
     runList <- unique(stats.org[, subsetVars]) # Necessary because stats.org is one line per variable
     rl <- runList[!grepl("Non", runList$org),] # Remove all non-org runs, so that we only calculate school-based peers for served populations
 
-    # stats.peers <- mapply(peerStats.fn, rl$Org, rl$Site, rl$Grade)
-    # Using a loop rather thn mapply() because mapply doesn't like being returned many data frames
+    # XXX Could refactor this for loop to run as an lapply() instead by first creating a list
+    #     from the rows of the rl table of combinations
 
     nRuns <- nrow(rl)
     stats.peers <- NULL
@@ -305,9 +333,8 @@
     for (i in 1:nRuns){
       
       # Audit values
-      #org = "YMCA"; site = "High Ridge"; grade = "All"; program = 'All'; year = "2013"
-      #org = "YMCA"; site = "All"; grade = "All"
-
+      # org = "YMCA"; site = "High Ridge"; grade = "All"; program = 'All'; year = "2013"
+      # org = "YMCA"; site = "All"; grade = "All"
       org <- rl$org[i]; site <- rl$site[i]; program <- rl$program[i]; grade <- rl$grade[i]; year <- rl$year[i];
       
       mySchs <- calcData[getSubset("org", org) & getSubset("site", site) & getSubset("program", program) & getSubset("grade", grade) & getSubset("year", year), c("sid", "schlid")]
