@@ -41,7 +41,7 @@
   pow <- powerTransform(x)
   x.bc <- bcPower(x, coef(pow))
   mean(x.bc); var(x.bc)
-
+  # the scale() function can produce mean 0, std dev = 1 variables
 
 # 3. Subset the data in to different distinct populations, e.g. by year, neighborhood, 
 #     and/or demographic subset. These must be no smaller than 10 individuals, and ideally a fair amount
