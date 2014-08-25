@@ -1,4 +1,14 @@
 #----------------------------------
+# # # TABLE OF CONTENTS
+#----------------------------------
+
+#1. Generally useful functions
+#2. runStats() function which obtains mean, variance, N, se for given data set
+#3. getSubset() function, which returns rows satisfying the given variable and value conditions;
+#     and peerStats.fn(), which calculates mean, n, and variance based on school means and proportions
+#4. 
+
+#----------------------------------
 # # # 1. Generally useful functions
 #----------------------------------
 
@@ -58,7 +68,7 @@
       for (outCol in outBys){
         colVar <- paste0("by", prop.case(outCol), "Var")
         if (get(colVar) == ""){
-          out[, outCol] <- "all"
+          out[, outCol] <- "All"
         } else {
           out[, outCol] <- out[ get(colVar)]
         }
@@ -81,7 +91,7 @@
 
   getSubset <- function(subvar, subval){
     if (subval == "All"){
-      return(calcData$all == calcData$all) # XXX Basically, an inelegant way to return a right-sized vector of "TRUE" values
+      return(rep(TRUE, nrow(calcData))) # XXX Basically, an inelegant way to return a right-sized vector of "TRUE" values
     } else if(subvar == "grade") {
       
       # Separate handling for grade ranges versus individual grade levels
@@ -99,7 +109,9 @@
         return(calcData$org == subval)
       }
     } else {
-      return(calcData[, subvar] == subval) # Identify rows with specifically the right values
+      return(calcData[, subvar, with=F] == subval)
+        # Identify rows with specifically the right values. Note that the "with=F" argument is syntax
+        # required because calcData is a data.table. See e.g. http://stackoverflow.com/questions/13383840/select-multiple-columns-in-data-table-r
     }
   }
 

@@ -16,11 +16,12 @@
   try(setwd("H:/Integrated Evaluation Project for YSS Providers"), silent=T)
   
   dataPath <- "./data/preprocessed-data/" # File path to locate and save data
+  scriptPath <- "~/GitHub/after-school-collab/scripts"
 
   library("reshape")
   #library("plyr")
   library("data.table")
-  source("./scripts/create_summary_stats_helper_functions.R")
+  source(paste0(scriptPath, "/create_summary_stats_helper_functions.R"))
   
   useScrambledData <- 0
 
@@ -82,7 +83,7 @@
         descVars <- c(descVars, newVar)
       }
     }
-  } # XXX There's likely a more elegant way to do this. Note that model.matrix(~0+var) drops observations with NAs, returning a vector of shorter length (which, at this stage, we don't want)
+  } # XXX There's may be a more elegant way to do this. Note that model.matrix(~0+var) drops observations with NAs, returning a vector of shorter length (which, at this stage, we don't want)
   descVars <- descVars[!(descVars %in% c("isat_mathpl", "isat_readpl"))] # Remove character variables
   
   subVars <- c("sid", "org", "Collab", orglist, "site", "program", "fGradeLvl", "fGradeGrp_K5_68_HS", "year", "schlid", descVars) 
@@ -151,14 +152,18 @@
   
     subsetVars <- c("org", "site", "program", "grade", "year")
     runList <- unique(stats.org[, subsetVars]) # Necessary because stats.org is one line per variable
+    naRows <- apply(runList, 1, function(x) any(is.na(x)))
+    runList <- runList[!naRows, ]
     rl <- runList[!grepl("Non", runList$org),] # Remove all non-org runs, so that we only calculate school-based peers for served populations
 
     # XXX Could refactor this for loop to run as an lapply() instead by first creating a list
-    #     from the rows of the rl table of combinations
+    #     from the rows of the rl table of combinations.
+    #   The speed of runs with a for loop is: 1108 seconds (18.5 minutes).
+    #   The speed of runs with an sapply() is: 1013 seconds (17 minutes). ... Difference is roughly margin of error.
 
     nRuns <- nrow(rl)
     stats.peers <- NULL
-
+    calcData <- data.table(calcData, key="org,site,program,year,fGradeGrp_K5_68_HS,fGradeLvl")
     for (i in 1:nRuns){
       
       # Audit values
@@ -166,17 +171,20 @@
       # org = "YMCA"; site = "All"; grade = "All"
       org <- rl$org[i]; site <- rl$site[i]; program <- rl$program[i]; grade <- rl$grade[i]; year <- rl$year[i];
 
-      myFocals <- calcData[getSubset("org", org) & 
-                           getSubset("site", site) &
-                           getSubset("program", program) &
-                           getSubset("grade", grade) &
-                           getSubset("year", year),
-                           c("sid", "schlid", descVars)]
-      myFocals.dups <- duplicated(myPeers[, c("sid", "schlid"))
+      myRows <- getSubset("org", org) & 
+                getSubset("site", site) &
+                getSubset("program", program) &
+                getSubset("grade", grade) &
+                getSubset("year", as.numeric(year))
+      myFocals <- subset(calcData, subset = as.vector(myRows), select = c("sid", "schlid", descVars))
+      myFocals.dups <- duplicated(myFocals[, c("sid", "schlid")])
       myFocals <- myFocals[!myFocals.dups,]
+      myFocalSchs <- unique(myFocals$schlid)
       
-      myPeers <- calcData[calcData$year == year &
-                          !(calcData$sid %in% myFocals$sid), c("sid", "schlid", descVars])
+      peerRows <- calcData$year == year &
+                  calcData$schlid %in% myFocalSchs &
+                  !(calcData$sid %in% myFocals$sid)
+      myPeers <- subset(calcData, subset = as.vector(peerRows), select = c("sid", "schlid", descVars))
       myPeers.dups <- duplicated(myPeers[, c("sid", "schlid")])
       myPeers <- myPeers[!myPeers.dups,]
       myPeers <- data.table(myPeers, key = "schlid")
@@ -190,18 +198,23 @@
       for (v in descVars){
         
         # Get proportions of schools represented by focal youth involved in the calculation
-          myFocalSchs <- myFocals$schlid[!is.na(myFocals[, v])]
-          schP <- data.frame(prop.table(table(myFocalSchs)))
+          myFocalSchs_v <- myFocals$schlid[!is.na(myFocals[, v, with=F])]
+          if (length(myFocalSchs_v) == 0) next # Some variables are not available in a given year. In this case, skip that variable in the loop
+          
+          schP <- data.frame(prop.table(table(myFocalSchs_v)))
           colnames(schP) <- c("sch", "prop")
         
         # Calculate characteristics of peers, excluding focal youth
           peerStats_bySch <- runStats(data = myPeers, vars = v, bySiteVar = "schlid") # Note: omission of all byVar arguments uses all observations
+          colnames(peerStats_bySch)[colnames(peerStats_bySch) == "site"] <- "sch"
+          peerStats_bySch <- peerStats_bySch[peerStats_bySch$variable == v & !is.na(peerStats_bySch[, "mean"]),]
+          peerStats_bySch[peerStats_bySch$n == 1, c("var", "sd", "var_mean", "se_mean")] <- 0
         
         # Get weighted average
-          peerStat <- peerStats.fn(myProps = schP, myVar = v, mySchStats = peerStats_bySch[peerStats_bySch$variable == v, ])
+          peerStat <- peerStats.fn(myProps = schP, myVar = v, mySchStats = peerStats_bySch)
           stats.peers <- rbind(stats.peers, cbind(outHeader, peerStat))
         
-      }
+      } # End of loop across descVars
     }
 
     stats.peers$site <- paste(stats.peers$site, "Sch-Based Peers")

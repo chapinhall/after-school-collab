@@ -9,7 +9,6 @@
 
 ## Set up workspace and designate/update file locations
 
-
   rm(list=ls())
   #myDir <- "/projects/Integrated_Evaluation_Youth_Support_Services/"
   myDir <- "H:/Integrated Evaluation Project for YSS Providers/"
@@ -85,15 +84,14 @@
                 VarList, orgnames, orgcomp = 1,
                 sitenames = c("All"), sitecomp = 1,
                 prognames = c("All"), grades = c("All"), 
-                years = c('All'),                                   #  main parameters - restrict data and shape graph
-                title = '', ylab = '', xlab = '',                   # titles
-                yscaletype = "percent",                             # to see raw means rather than percents, set yscaletype = waiver()
-                xnames = waiver()                                   # vector of variable names in the same order as the variables in varlist
+                years = c('All'),                        # main parameters - restrict data and shape graph
+                title = '', ylab = '', xlab = '',        # titles
+                yscaletype = "percent",                  # to see raw means rather than percents, set yscaletype = waiver()
+                xnames = waiver()                        # vector of variable names in the same order as the variables in varlist
                       ){
 
     # Print status for auditing purposes
-        print(paste("Graphing",orgnames,VarList,"for sites",sitenames,"for programs",prognames,"for years",years,"for grades",grades))
-    
+        print(paste("Graphing", orgnames, VarList, "for sites", sitenames, "for programs", prognames,"for years", years, "for grades", grades))
     
     # Restrict dataset based on primary parameters
   
@@ -118,7 +116,7 @@
         }
     
     
-        if (years[1] == 'All') {useYr <- c('2012', '2013')} else {useYr <- years}
+        if (years[1] == 'All') {useYr <- unique(descStats$year)} else {useYr <- years}
         
         data <- descStats[
                 (descStats$org      %in% orglist  & 
@@ -126,9 +124,10 @@
                  descStats$program  %in% prognames &
                  descStats$grade    %in% grades    &
                  descStats$year     %in% useYr     &
-                 descStats$variable %in% VarList),]
+                 descStats$variable %in% VarList), ]
     
-        data <- data[!is.na(mean(data$mean, na.rm = T)),] # Remove obs that are NA for mean
+        #data <- data[!is.na(mean(data$mean, na.rm = T)),] # Remove obs that are NA for mean
+        data <- data[!is.na(data$mean), ] # Remove obs that are NA for mean
     
     if (nrow(data)==0) {
       print("No data")
@@ -136,65 +135,65 @@
     
     # Convert year to numeric for plots over time
         
-        if (years[1] != "All") {data$year <- as.numeric(data$year)}
+      if (years[1] != "All") {data$year <- as.numeric(data$year)}
     
     # Make sure that graph will display variables from L to R in the order specified in VarList
     
-        data$variable <- factor(data$variable, levels = VarList) 
+      data$variable <- factor(data$variable, levels = VarList) 
     
     # Print dataset for debugging purposes (remove this once all is final)
     
-       # print(data)
+     # print(data)
     
     # Define the fill value as a part of the data frame (aes.fill can only equal a variable in the df)
     
-        if (sitenames[1] != "All") { 
-          data$fill = data$site 
-        } else { 
-          if (prognames[1] != 'All') {
-            data$fill = data$program
-        } else {
-            data$fill = data$org }}
-            
+      if (sitenames[1] != "All") { 
+        data$fill = data$site 
+      } else if (prognames[1] != 'All') { 
+        data$fill = data$program
+      } else {
+        data$fill = data$org
+      }    
     
     # Define the fill to match organization
     
-        if (length(sitenames) <= 3 & length(prognames <= 3)) {
-          if (is.na(orgnames[2])) { 
-            useFill <- eval(parse(text = paste0(orgnames,"fill"))) 
-            } else { 
-            useFill <- OrgvOrgfill }    
-        } else {
-          useFill <- rainbow(max(length(sitenames), length(prognames)))
+      if (length(sitenames) <= 3 & length(prognames <= 3)) {
+        if (is.na(orgnames[2])) { 
+          useFill <- eval(parse(text = paste0(orgnames,"fill"))) 
+        } else { 
+          useFill <- OrgvOrgfill
         }
-             
+      } else {
+        useFill <- rainbow(max(length(sitenames), length(prognames)))
+      }
+           
     # Create plot
     
-      if (is.na(years[2])) {
-            plot <- ggplot(data=data, aes(x=variable, y=mean, fill = fill)) + 
-                    geom_bar(stat = 'identity', position = 'dodge', width=0.7) +
-                    ggtitle(title) +
-                    scale_y_continuous(labels = eval(parse(text = yscaletype)), name = ylab) +
-                    scale_x_discrete(name = xlab, labels = xnames) +
-                    guides(fill = guide_legend(title = NULL)) + theme(legend.position = 'bottom') +
-                    scale_fill_manual(values = useFill) +
-                    theme(axis.title.y = element_text(size = 8))
-            timeind <- ""    
-      } else {
-            plot <- ggplot(data=data, aes(x=year, y=mean, color = fill)) +
-                    geom_point() + geom_line() +
-                    scale_color_manual(values = useFill) +
-                    ggtitle(title) +
-                    scale_y_continuous(labels = eval(parse(text = yscaletype)), name = ylab) +
-                    scale_x_continuous(name = xlab) +
-                    guides(color = guide_legend(title = NULL)) + theme(legend.position = 'bottom') +
-                    theme(axis.title.y = element_text(size = 8))
-            timeind <- "OverTime"  
+      if (is.na(years[2])) { # Generate plots across single year
+        plot <- ggplot(data=data, aes(x=variable, y=mean, fill = fill)) + 
+                geom_bar(stat = 'identity', position = 'dodge', width=0.7) +
+                ggtitle(title) +
+                scale_y_continuous(labels = eval(parse(text = yscaletype)), name = ylab) +
+                scale_x_discrete(name = xlab, labels = xnames) +
+                guides(fill = guide_legend(title = NULL)) + theme(legend.position = 'bottom') +
+                scale_fill_manual(values = useFill) +
+                theme(axis.title.y = element_text(size = 8))
+        timeind <- ""    
+      } else { # Generate plots comparing multiple years
+        plot <- ggplot(data=data, aes(x=year, y=mean, color = fill)) +
+                geom_point() + geom_line() +
+                scale_color_manual(values = useFill) +
+                ggtitle(title) +
+                scale_y_continuous(labels = eval(parse(text = yscaletype)), name = ylab) +
+                scale_x_continuous(name = xlab) +
+                guides(color = guide_legend(title = NULL)) + theme(legend.position = 'bottom') +
+                theme(axis.title.y = element_text(size = 8))
+        timeind <- "OverTime"  
       }
             
     # Output plot to saved file
     
-        if (is.na(orgnames[2])) {
+        if (is.na(orgnames[2])) { # Output for graphs within one organization
             if (is.na(sitenames[2]) & is.na(prognames[2])) {
               myGraphOut <- paste0(myOutDir,orgnames[1],"/",sitenames[1],"/")
               dir.create(myGraphOut, showWarnings = FALSE)
@@ -208,13 +207,12 @@
               dir.create(myGraphOut, showWarnings = FALSE)
               ggsave(filename = paste0(myGraphOut, "SitevSite_",VarList[1],timeind,".png"), plot = plot, dpi = myRes, width = myWidth, height = myHeight) 
             }
-        } else {
+        } else { # Output for graphs comparing organizations
           myGraphOut <- paste0(myOutDir,"OrgvOrg/")
           dir.create(myGraphOut, showWarnings = FALSE)
           ggsave(filename = paste0(myGraphOut,VarList[1],timeind,".png"), plot = plot, dpi = myRes, width = myWidth, height = myHeight) 
         }
                     
-    
     # Return plot - this displays the plot once the function has run
     
       return(plot)
@@ -255,7 +253,7 @@
             "isat_readpl_B","isat_readpl_M","isat_readpl_E","isat_readpl_ME","isat_readss")
   
   VarGroup <- Vars
-  metadata <- data.frame(Vars,VarGroup,stringsAsFactors = FALSE)
+  metadata <- data.frame(Vars, VarGroup, stringsAsFactors = FALSE)
   metadata$VarGroup[metadata$Vars %in% c("bRace_B","bRace_H","bRace_W","bRace_M","bRace_O")] <- "Race"
   metadata$VarGroup[metadata$Vars %in% c("fGradeLvl_PK","fGradeLvl_K","fGradeLvl_1","fGradeLvl_2","fGradeLvl_3","fGradeLvl_4",
                                          "fGradeLvl_5","fGradeLvl_6","fGradeLvl_7","fGradeLvl_8","fGradeLvl_9","fGradeLvl_10",
@@ -273,7 +271,8 @@
   # These have already been defined above by VarGroup
   createlists <- function(group, tobegrouped) {
     list <- tobegrouped[metadata$VarGroup == group]
-    return(list)}
+    return(list)
+  }
   
   vargroups <- levels(as.factor(metadata$VarGroup))
   varlists <- sapply(vargroups, createlists, tobegrouped = metadata$Vars)
@@ -373,34 +372,3 @@ if (1==runDescGraphs) {
     # Set the order for the x-variables to be displayed (releveling aesx)
     d[, aesx] <- factor(d[, aesx], levels = d[order(xOrderVar), aesx])
 	
-	
-	
-  #-------------------------------------------------------
-  #### Old code for other types of visuals
-  #-------------------------------------------------------
-	
-	  # Graph Neighborhood characteristics - this graph is different from above
-      DemNbr <- melt(ctsPlotData[, c("Site", "Tract_Pct_LtHsEd", "Tract_Pct_VacantUnits", "Tract_ViolentCrimes_PerHundr", "Tract_Pct_IncRatKidsLt6_Lt100", "Tract_Pct_NonEnglLangSpokenAtHome")], id=("Site"))
-      
-      DemNbr$VarName[DemNbr$variable=="Tract_Pct_LtHsEd"] <- "Prop'n <\nHS Ed"
-      DemNbr$VarName[DemNbr$variable=="Tract_Pct_VacantUnits"] <- "Prop'n Units\nVacant"
-      DemNbr$VarName[DemNbr$variable=="Tract_ViolentCrimes_PerHundr"] <- "Violent Crimes\nPer 100"
-      DemNbr$VarName[DemNbr$variable=="Tract_Pct_IncRatKidsLt6_Lt100"] <- "Prop'n Kids\nin Poverty"
-      DemNbr$VarName[DemNbr$variable=="Tract_Pct_NonEnglLangSpokenAtHome"] <- "Prop'n No Engl\nat Home"
-      
-      DemNbr$mLabel <- sprintf("%.1f", DemNbr$value)
-      
-      png(file = myGraphOut %&% "CpsVsOrg_Neighborhood_AnyYss.png", res = myRes, width = myWidth, height = myHeight)
-        Plot_Nbhd <- ggplot(data=DemNbr, aes(x=VarName, y = value, fill=Site)) + 
-          geom_bar(stat="identity", position="dodge", width=0.7) +
-          #geom_text(data=DemNbr, aes(x=VarName, y=value, label=mLabel, vjust=-1), position = position_dodge(width=0.7), size=5) +
-          ggtitle("Comparison of Youth Neighborhoods") +
-          theme(legend.position="bottom") +
-          theme(axis.text.x=element_text(size=7)) +
-          theme(axis.title.x=element_blank(), axis.title.y=element_blank()) +
-          scale_fill_manual(values=useFill) +
-          guides(fill=guide_legend(title=NULL))
-        print(Plot_Nbhd)
-      dev.off()
-	  
-	 # For scatterplot of site v. site see code in archived analyze and report file (on H drive in data/Code Archive).
