@@ -90,6 +90,7 @@
   calcData <- myData[, subVars]
   rm(myData)
   
+
 #------------------------------  
 #------------------------------
 ## Calculate summary statistics
@@ -164,6 +165,7 @@
     nRuns <- nrow(rl)
     stats.peers <- NULL
     calcData <- data.table(calcData, key="org,site,program,year,fGradeGrp_K5_68_HS,fGradeLvl")
+
     for (i in 1:nRuns){
       
       # Audit values
@@ -177,16 +179,18 @@
                 getSubset("grade", grade) &
                 getSubset("year", as.numeric(year))
       myFocals <- subset(calcData, subset = as.vector(myRows), select = c("sid", "schlid", descVars))
-      myFocals.dups <- duplicated(myFocals[, c("sid", "schlid")])
+      myFocals.dups <- duplicated(data.frame(myFocals)[, c("sid", "schlid")])
       myFocals <- myFocals[!myFocals.dups,]
       myFocalSchs <- unique(myFocals$schlid)
       
       peerRows <- calcData$year == year &
+                  getSubset("grade", grade) &
                   calcData$schlid %in% myFocalSchs &
                   !(calcData$sid %in% myFocals$sid)
       myPeers <- subset(calcData, subset = as.vector(peerRows), select = c("sid", "schlid", descVars))
-      myPeers.dups <- duplicated(myPeers[, c("sid", "schlid")])
+      myPeers.dups <- duplicated(data.frame(myPeers)[, c("sid", "schlid")])
       myPeers <- myPeers[!myPeers.dups,]
+      
       myPeers <- data.table(myPeers, key = "schlid")
       
       # Set up header for identifying calculations
@@ -207,7 +211,7 @@
         # Calculate characteristics of peers, excluding focal youth
           peerStats_bySch <- runStats(data = myPeers, vars = v, bySiteVar = "schlid") # Note: omission of all byVar arguments uses all observations
           colnames(peerStats_bySch)[colnames(peerStats_bySch) == "site"] <- "sch"
-          peerStats_bySch <- peerStats_bySch[peerStats_bySch$variable == v & !is.na(peerStats_bySch[, "mean"]),]
+          peerStats_bySch <- peerStats_bySch[!is.na(peerStats_bySch$mean), ]
           peerStats_bySch[peerStats_bySch$n == 1, c("var", "sd", "var_mean", "se_mean")] <- 0
         
         # Get weighted average

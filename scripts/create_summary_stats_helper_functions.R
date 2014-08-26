@@ -39,8 +39,8 @@
       }
       
     # Determine what other by variables are needed, and unduplicate records
-      allBys <- c(byOrgVar, byProgramVar, bySiteVar, byGradeVar, byYearVar)
-      byVars <- allBys[allBys!=""]
+      potentialBys <- c(byOrgVar, byProgramVar, bySiteVar, byGradeVar, byYearVar)
+      byVars <- potentialBys[potentialBys!=""]
       keepRows <- !duplicated(useData[, c("sid", byVars)])
       useData <- useData[keepRows,]
     
