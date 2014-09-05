@@ -1,0 +1,30 @@
+\documentclass{article}
+\usepackage[T1]{fontenc}
+
+\begin{document}
+\title{Sample Report}
+
+% Can insert loops into http://stackoverflow.com/questions/15396755/using-loops-with-knitr-to-produce-multiple-pdf-reports-need-a-little-help-to
+% Check out this nice little intro to Sweave: http://beckmw.files.wordpress.com/2014/02/sweave_intro1.pdf
+
+Here is a code chunk.
+
+<<foo, fig.height=4>>=
+1+1
+letters
+chartr('xie', 'XIE', c('xie yihui', 'Yihui Xie'))
+par(mar=c(4, 4, .2, .2)); plot(rnorm(100))
+@
+
+Here is some code that gets evaluated but not shown
+<<bar, echo=FALSE>>=
+d <- data.frame(x = 1:10, y = runif(10))
+@
+
+<<meanvar, eval=TRUE>>=
+mean(d$y); var(d$y)
+@
+
+You can also write inline expressions, e.g. $\pi=\Sexpr{pi}$, and \Sexpr{1.598673e8} is a big number.
+
+\end{document}
