@@ -135,18 +135,6 @@
   # This is one way of addressing for the fact that partcipants are not broadly representative of the CPS system.
   # The below code calculates these averages both for the served population in aggregate and for each site.  
   
-  #-------------------------------
-  ## Establish Peer Stats Function
-  #-------------------------------
-
-    # Establish a function to calculate weighted statistics. This uses the weighted.mean function to apply the weights and sum. Note that
-    # while the means and N calculations are straight weighted means, the variance calculation requires more special treatment.
-    # If a weighted mean characteristics for schools A and B, with weights c and d, is calculated as mu = c*\bar{x_A} + d*\bar{x_B}
-    #    then the variance is 
-    #         var(c*\bar{x_A} + d*\bar{x_B}) = c^2*s2_{\bar{X_A}} + d^2*s2_{\bar{X_A}}
-    #    where the s2_{\bar{X_@}} is the variance of the mean statistics (in contrast to the variance of the X's). This is
-    #    the variance that was calculated in the runStats() function above.
-  
   #--------------------------------------------------------
   ## Call the peer averages function, and save and close up
   #--------------------------------------------------------
@@ -157,10 +145,9 @@
     runList <- runList[!naRows, ]
     rl <- runList[!grepl("Non", runList$org),] # Remove all non-org runs, so that we only calculate school-based peers for served populations
 
-    # XXX Could refactor this for loop to run as an lapply() instead by first creating a list
-    #     from the rows of the rl table of combinations.
-    #   The speed of runs with a for loop is: 1108 seconds (18.5 minutes).
-    #   The speed of runs with an sapply() is: 1013 seconds (17 minutes). ... Difference is roughly margin of error.
+    # XXX Could refactor this for loop to run as an lapply() instead by first creating a list from the rows of the rl table of combinations.
+    #   Runs with a for loop is: 1108 seconds (18.5 minutes); runs with an sapply() is: 1013 seconds (17 minutes).
+    #   ... Difference is roughly margin of error.
 
     nRuns <- nrow(rl)
     stats.peers <- NULL
@@ -168,37 +155,34 @@
 
     for (i in 1:nRuns){
       
-      # Audit values
-      # org = "YMCA"; site = "High Ridge"; grade = "All"; program = 'All'; year = "2013"
-      # org = "YMCA"; site = "All"; grade = "All"
       org <- rl$org[i]; site <- rl$site[i]; program <- rl$program[i]; grade <- rl$grade[i]; year <- rl$year[i];
 
-      myRows <- getSubset("org", org) & 
-                getSubset("site", site) &
-                getSubset("program", program) &
-                getSubset("grade", grade) &
-                getSubset("year", as.numeric(year))
-      myFocals <- subset(calcData, subset = as.vector(myRows), select = c("sid", "schlid", descVars))
+      focalRows <- getSubset("org", org) & 
+                   getSubset("site", site) &
+                   getSubset("program", program) &
+                   getSubset("grade", grade) &
+                   getSubset("year", as.numeric(year))
+      myFocals      <- subset(calcData, subset = as.vector(focalRows), select = c("sid", "schlid", descVars))
       myFocals.dups <- duplicated(data.frame(myFocals)[, c("sid", "schlid")])
-      myFocals <- myFocals[!myFocals.dups,]
-      myFocalSchs <- unique(myFocals$schlid)
+      myFocals      <- myFocals[!myFocals.dups,]
+      myFocalSchs   <- unique(myFocals$schlid)
       
       peerRows <- calcData$year == year &
                   getSubset("grade", grade) &
                   calcData$schlid %in% myFocalSchs &
                   !(calcData$sid %in% myFocals$sid)
-      myPeers <- subset(calcData, subset = as.vector(peerRows), select = c("sid", "schlid", descVars))
+      myPeers      <- subset(calcData, subset = as.vector(peerRows), select = c("sid", "schlid", descVars))
       myPeers.dups <- duplicated(data.frame(myPeers)[, c("sid", "schlid")])
-      myPeers <- myPeers[!myPeers.dups,]
+      myPeers      <- myPeers[!myPeers.dups,]
       
       myPeers <- data.table(myPeers, key = "schlid")
       
       # Set up header for identifying calculations
       outHeader <- data.frame(org = rl$org[i], site = rl$site[i], program = rl$program[i], grade = rl$grade[i], year = rl$year[i])
       
+      # Run calculations variable by variable since different variables by school may have different numbers of NAs to drop
       print(paste("Performing run ", i, " of ", nRuns, "or ", round(i/nRuns, 3)*100, "% done. Run is for: org =", org, ", site =", site, ", program =", program, ", grade =", grade, ", year =", year))
       
-      # Run calculations variable by variable since different variables by school may have different numbers of NAs to drop
       for (v in descVars){
         
         # Get proportions of schools represented by focal youth involved in the calculation
@@ -223,8 +207,9 @@
 
     stats.peers$site <- paste(stats.peers$site, "Sch-Based Peers")
 
-    
+#-------------------------
 ## Compile and save output
+#-------------------------
 
     descStats    <- rbind(stats.org[, colnames(stats.peers)], stats.peers)
     descStats$plusminus <- descStats$se_mean * 1.96

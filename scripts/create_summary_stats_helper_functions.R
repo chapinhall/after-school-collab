@@ -95,7 +95,7 @@
     } else if(subvar == "grade") {
       
       # Separate handling for grade ranges versus individual grade levels
-      if (subval %in% c("K-5", "Gr6-8", "HS")){
+      if (subval %in% c("PK-5", "Gr6-8", "HS")){
         return(calcData$fGradeGrp_K5_68_HS == subval)
       } else {
         return(calcData$fGradeLvl == subval)
@@ -118,6 +118,14 @@
   #----------------------------------------------------
   # Generate statistics using weighted mean calculation
   #----------------------------------------------------
+
+    # This uses the weighted.mean function to apply the weights and sum. Note that while the means and N calculations are straight 
+    #   weighted means, the variance calculation requires more special treatment.
+    # If a weighted mean characteristics for schools A and B, with weights c and d, is calculated as mu = c*\bar{x_A} + d*\bar{x_B}
+    #    then the variance is 
+    #         var(c*\bar{x_A} + d*\bar{x_B}) = c^2*s2_{\bar{X_A}} + d^2*s2_{\bar{X_A}}
+    #    where the s2_{\bar{X_@}} is the variance of the mean statistics (in contrast to the variance of the X's). This is
+    #    the variance that was calculated in the runStats() function above.
 
   peerStats.fn <- function(myProps, myVar, mySchStats){
     

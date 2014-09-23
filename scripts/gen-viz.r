@@ -49,7 +49,7 @@
   
   myRes <- 600
   myWidth  <- 4.67 #Using inches (for ggsave)
-  myHeight <- 3.5 #Using inches (for ggsave)
+  myHeight <- 3.50 #Using inches (for ggsave)
   #Using pixels: myWidth <- 2800
   #Using pixels: myHeight <- 2100
 
@@ -62,7 +62,7 @@
       scramInd <- ""
   }
 
-  load(paste0(dataPath,"descStats",scramInd,".Rda"))
+  load(paste0(dataPath, "descStats", scramInd, ".Rda"))
   
   
 ## Small data change - move org level school based peers indicator to Org variable
