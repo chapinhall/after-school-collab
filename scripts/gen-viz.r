@@ -153,7 +153,7 @@
         data$fill = data$program
       } else {
         data$fill = data$org
-      }    
+      }
     
     # Define the fill to match organization
     
