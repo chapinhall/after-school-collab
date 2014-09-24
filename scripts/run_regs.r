@@ -3,13 +3,16 @@
 # RUN OUTCOME-ORIENTED REGRESSION ESTIMATION  # 
 #                                             #
 # Authors: Nick Mader, Ian Matthew Morey,     # 
-#		    and Emily Wiegand		                  #
+#  	    and Emily Wiegand		                  #
 #---------------------------------------------#
 #---------------------------------------------#
 
 ## Set up workspace and designate/update file locations
 
   rm(list=ls())
+  library("ggplot2")
+  library("reshape")
+  library("plyr")
   #myDir <- "/projects/Integrated_Evaluation_Youth_Support_Services/"
   myDir <- "H:/Integrated Evaluation Project for YSS Providers"
   setwd(myDir)
@@ -43,6 +46,23 @@
       d_pp$Pct_Attend100_lag <- d_pp$Pct_Attend_lag*100
       d_pp$nGradeLvl <- f.to.n(d_pp$fGradeLvl)
   
+    # Create standardized ISAT measures
+      vars_m0s1 <- ddply(d_pp, .(fGradeLvl), summarize, 
+                           isat_mathss_m0s1 = scale(isat_mathss),
+                           isat_readss_m0s1 = scale(isat_readss))
+      d_pp <- cbind(d_pp, vars_m0s1[,2:ncol(vars_m0s1)])
+  
+      # Check output
+        aggregate(isat_mathss_m0s1 ~ fGradeLvl, vars_m0s1, mean, na.rm = T)
+        aggregate(isat_mathss_m0s1 ~ fGradeLvl, vars_m0s1, sd, na.rm = T)
+        with(d_pp, cor(isat_mathss, isat_mathss_m0s1))
+        with(d_pp[d_pp$fGradeLvl == 8,], cor(isat_mathss, isat_mathss_m0s1))
+  
+      # Check how gains vary across grades
+        d_pp$isat_mathss_gain <- with(d_pp, isat_mathss - isat_mathss_lag)
+        d_pp$isat_readss_gain <- with(d_pp, isat_readss - isat_readss_lag)
+        aggregate(d_pp[, c("isat_mathss_gain", "isat_readss_gain")], list(d_pp$fGradeLvl), mean, na.rm = T)
+  
     # Fill in missing MVMS values
       d_pp$MVMS_miss <- 0
       mvmsVars <- grep("MVMS_.+[^se]$", cn(d_pp), value = T)
@@ -53,7 +73,7 @@
       }
   
     # Subset the data
-      d_sub <- d_pp[d_pp$year %in% 2012:2013, ]
+      d_sub <- d_pp[d_pp$year %in% 2013, ] # 2012:
   
   ### Set up regression lists
     # Dependent Vars 
@@ -63,7 +83,8 @@
     # Regressors
       raceXs <- grep("bRace", cn(d_pp), value = T)
         raceXs <- raceXs[-which(raceXs %in% c("bRace_W", "bRace_NonW"))]
-      regVars <- c("bLunch_F", "bLunch_R", raceXs, "bGender_Female", "bIEP", "Tract_ViolentCrimes_PerHundr", "Tract_Pct_IncRatKidsLt6_Lt100", "Tract_Pct_NonEnglLangSpokenAtHome")
+      regVars <- c("bLunch_F", "bLunch_R", raceXs, "bGender_Female", "bIEP")
+        #"Tract_ViolentCrimes_PerHundr", "Tract_Pct_IncRatKidsLt6_Lt100", "Tract_Pct_NonEnglLangSpokenAtHome"
       lagXs <- c("Pct_Attend100_lag", "isat_mathss_lag", "isat_readss_lag")
       mvmsXs <- grep("MVMS_.+[^e]$", cn(d_pp), value = T)
     # Treatment vars
@@ -73,11 +94,12 @@
       collabDaysCatDoseTrt  <-   grep("Collab_fdosage_days",  cn(d_pp), value = T)
       collabHoursCtsDoseTrt <- c(grep("Collab_dosage_hours",  cn(d_pp), value = T), collabBin)
       collabDaysCtsDoseTrt  <- c(grep("Collab_dosage_days",   cn(d_pp), value = T), collabBin)
-      orgHoursCatDoseTrt <- grep("[^Collab]_fdosage_hours", cn(d_pp), value = T)
-      orgDaysCatDoseTrt  <- grep("[^Collab]_fdosage_days",  cn(d_pp), value = T)
+      orgHoursCatDoseTrt <-   grep("[^Collab]_fdosage_hours", cn(d_pp), value = T)
+      orgDaysCatDoseTrt  <-   grep("[^Collab]_fdosage_days",  cn(d_pp), value = T)
       orgHoursCtsDoseTrt <- c(grep("[^Collab]_dosage_hours",  cn(d_pp), value = T), orgBin)
       orgDaysCtsDoseTrt  <- c(grep("[^Collab]_dosage_days",   cn(d_pp), value = T), orgBin)  
-
+    # Site/Program Treatment indicators
+      siteBin <- grep("^org_site", cn(d_pp), value = T)
   
 #----------------------------------------------#
 #----------------------------------------------#
@@ -85,11 +107,11 @@
 #----------------------------------------------#
 #----------------------------------------------#
     
-  # Set up data to use for trials
+  # Set up data to use for troubleshooting code
     myData <- d_sub[d_sub$fGradeLvl=="7",]
     myY <- "isat_mathss"
     myLabel <- "Gr8"
-    myTrt <- orgBin
+    myTrt <- siteBin
     myXs <- c(regVars, "lep_test", mvmsXs)
     for (v in myTrt){
       myData[is.na(myData[, v]), v] <- 0
@@ -127,6 +149,15 @@
                              b = c(d$adj.r.squared, length(d$residuals), d$df[2]))
       fitStats[, cn(betas)[!(cn(betas) %in% c("x", "b"))]] <- NA
       betas <- rbind(betas, fitStats)
+
+      # Obtain counts of non-zero values by treatment variable.
+      #   This is intended to identify binary indicators with small cells
+      rowsInReg <- rownames(myData) %in% names(d$residuals)
+      countNon0 <- function(x) sum(x!=0)
+      non0TrtCounts <- apply(myData[rowsInReg, myTrt], 2, countNon0)
+      dfNon0TrtCounts <- data.frame("x" = as.character(names(non0TrtCounts)), non0Count = non0TrtCounts, stringsAsFactors = FALSE)
+        rownames(dfNon0TrtCounts) <- NULL
+      betas <- merge(betas, dfNon0TrtCounts, by = "x", all.x = T)
       
       # Add post-estimation statistics and names
       betas$plusminus <- 1.96*betas$se
@@ -138,7 +169,7 @@
       
       # Create unique id for each estimate and output
       betas <- within(betas, id <- paste(y, label, spec, x, sep = "_"))
-      assign(spec %&% "Out", betas[, c("spec", "y", "x", "b", "se", "plusminus", "ll", "ul", "t", "p", "sig", "id")])
+      assign(spec %&% "Out", betas[, c("spec", "y", "x", "b", "se", "non0Count", "plusminus", "ll", "ul", "t", "p", "sig", "label", "id")])
     }
     return(do.call(rbind, list(rawOut, preOut, nowOut, adjOut, schOut)))
     
@@ -152,21 +183,26 @@
 #----------------------------------------------#
   
   estOut <- NULL
-  for (myTrtGrp in c("collabBin", "orgBin", "collabHoursCatDoseTrt", "collabHoursCtsDoseTrt")) { # "collabDaysCatDoseTrt", "collabDaysCtsDoseTrt")
+  for (myTrtGrp in c("siteBin", "orgBin")) { # "collabBin", "collabHoursCatDoseTrt", "collabHoursCtsDoseTrt" # "collabDaysCatDoseTrt", "collabDaysCtsDoseTrt")
     trtVars <- get(myTrtGrp)
     
     print(paste0("Running trtVars: ", myTrtGrp))
         
     ## Impacts on ISAT scores
       isatOut <- NULL
-      for (myG in 4:8){
-        for (myT in c("isat_mathss", "isat_readss")){
+      for (myT in c("isat_mathss", "isat_readss")){
+        for (myG in c("All")){ # 4:8, 
           print(paste0("--> Running Estimation for ", myT, " for grade ", myG))
           
           # Specify Xs and data
           Xs <- c(regVars, "lep_test")
           if (myG >= 6 | myG == "All") Xs <- c(Xs, mvmsXs)
-          d <- d_sub[d_sub$nGradeLvl == myG, ]
+          if (myG == "All") {
+            d <- d_sub[d_sub$nGradeLvl %in% 4:8, ]
+            Xs <- c(regVars, "fGradeLvl")
+          } else {
+            d <- d_sub[d_sub$nGradeLvl == myG, ]
+          }
           
           # Run regs
           b <-  runLms(myData = d, myY = myT, myLabel = myG, myTrt = trtVars, myXs = myXs,
@@ -183,18 +219,23 @@
           
           isatOut <- rbind(isatOut, b)
           
-        } # End of loop across test outcomes
-      } # End of loop across grades
+        } # End of loop across grades        
+      } # End of loop across test outcomes
        
     ## Impacts on School Attendance scores
       attendOut <- NULL
-      for (myG in 2:12){
+      for (myG in c("All")){ # 2:12, 
         print(paste0("--> Running Estimation for School Attendance for grade ", myG))
         Xs <- regVars
         if (myG >= 6 | myG == "All") Xs <- c(Xs, mvmsXs)
-        d <- d_sub[d_sub$nGradeLvl == myG, ]
+        if (myG == "All"){
+          d <- d_sub[d_sub$nGradeLvl %in% 2:12, ]
+          Xs <- c(regVars, "fGradeLvl")
+        } else {
+          d <- d_sub[d_sub$nGradeLvl == myG, ]
+        }
         
-        b <-  runLms(myData = d, myY = "Pct_Attend", myLabel = myG, myTrt = trtVars, myXs = Xs,
+        b <-  runLms(myData = d, myY = "Pct_Attend100", myLabel = myG, myTrt = trtVars, myXs = Xs,
                      lagXs = c("Pct_Attend100_lag"))
         attendOut <- rbind(attendOut, b)
       }
@@ -211,24 +252,27 @@
       ontrackOut <- b
     
     # Sample selection into reporting of MVMS
-      mvmsMissOut <- NULL  
-      for (myG in 7:12) {
-        print(p0("--> Running Estimation around selection for MVMS missing, for grade", myG))
-        Xs <- c(regVars)
-        d <- d_sub[d_sub$nGradeLvl == myG, ]
-        b <-  runLms(myData = d, myY = MVMS_miss, myLabel = paste(myMvms, myG, sep="-"), myTrt = trtVars, myXs = Xs,
-                       lagXs = c("Pct_Attend100_lag", "isat_mathss_lag", "isat_readss_lag"))
-          mvmsOut <- rbind(mvmsMissOut, b)
-      }
+#       mvmsMissOut <- NULL  
+#       for (myG in c(7:12, "All")) {
+#         print(p0("--> Running Estimation around selection for MVMS missing, for grade", myG))
+#         Xs <- c(regVars)
+#         d <- d_sub[d_sub$nGradeLvl == myG, ]
+#         b <-  runLms(myData = d, myY = MVMS_miss, myLabel = paste(myMvms, myG, sep="-"), myTrt = trtVars, myXs = Xs,
+#                        lagXs = c("Pct_Attend100_lag", "isat_mathss_lag", "isat_readss_lag"))
+#           mvmsOut <- rbind(mvmsMissOut, b)
+#       }
     
     # Impacts on MVMS Outcomes
       mvmsOut <- NULL
       for (myMvms in mvmsVars){
-        for (myG in 7:12){
+        for (myG in c("All")){ # 7:12
           print(paste0("--> Running Estimation for MVMS for outcome ", myMvms, " and grade ", myG))
-          Xs <- c(regVars) # mvmsXs
-          d <- d_sub[d_sub$nGradeLvl == myG, ]
-          
+          Xs <- c(regVars)
+          if (myG == "All"){
+            d <- d_sub[d_sub$nGradeLvl %in% 7:12, ]  
+          } else {
+            d <- d_sub[d_sub$nGradeLvl == myG, ]  
+          }         
           b <-  runLms(myData = d, myY = myMvms, myLabel = paste(myMvms, myG, sep="-"), myTrt = trtVars, myXs = Xs,
                        lagXs = c("Pct_Attend100_lag", "isat_mathss_lag", "isat_readss_lag"))
           mvmsOut <- rbind(mvmsOut, b)
@@ -247,6 +291,7 @@
     
   } # End of loop across groups of treatment variables
   
+  #write.csv(estOut, file = "./output/Regression Estimates - site- and org-level estimates.csv")
   write.csv(estOut, file = "./output/Regression Estimates - multiple outcomes - multiple treatment specs.csv")
   
 
@@ -256,24 +301,84 @@
 #---------------------------------------------#
 #---------------------------------------------#
 
-  regOut <- read.csv(file = "./output/Regression Estimates - multiple outcomes - multiple treatment specs.csv")
+  #regOut <- read.csv(file = "./output/Regression Estimates - multiple outcomes - multiple treatment specs.csv")
+  siteOut <- read.csv(file = "./output/Regression Estimates - site-level estimates.csv")
+  orgOut <- read.csv(file = "./output/Regression Estimates - site- and org-level estimates.csv")
   
+  yLabels <- list("isat_mathss" = c("ISAT Test Score - Math", "% of a year of growth"),
+                    "isat_readss" = c("ISAT Test Score- Reading", "% of a year of growth"),
+                    "Pct_Attend100" = c("Percent School Attendance", "% school day attendance"))
   
-    # Identify sites with 10 or more observations
-#         rowsInReg <- rownames(regData) %in% names(adjReg$residuals)
-#         SiteNs_Reg <- table(regData$fShortSite[rowsInReg])
-#         SiteNames_NGe10 <- names(sort(SiteNs_Reg[SiteNs_Reg >= 10]))
-#         SiteNames_NLt10 <- names(sort(SiteNs_Reg[SiteNs_Reg <  10]))
-#         cSiteNames_NLt10 <- paste(SiteNames_NLt10, collapse = ", ")
-#         print("Sites " %&% cSiteNames_NLt10 %&% " are excluded due to fewer than 10 valid observations.")
-#         
-#         plotEff <- as.data.frame(adjReg$coeff[grep(trtVar, rownames(adjReg$coeff)), ])
-#         plotEff$myX <- sub(trtVar, "", rownames(plotEff))
-#         plotEff <- plotEff[plotEff$myX %in% SiteNames_NGe10,]
-#         
-#         colnames(plotEff) <- c("b", "se", "t", "p", "myX")
-#         
-#         estOrder <- order(plotEff$b)
-#         plotEff$myX <- factor(plotEff$myX, levels = plotEff$myX[estOrder])
-#         plotEff <- plotEff[estOrder,]
-#       
+  #-------------------------------------
+  ### Plot Site Comparisons of Estimates
+  #-------------------------------------
+    
+    dChasi <- siteOut[grepl("CHASI", siteOut$x) & grepl("All_sch", siteOut$id),]
+    dBigNs <- dChasi[dChasi$non0Count >= 10,]
+    
+    yLabels <- list("isat_mathss" = c("ISAT Test Score - Math", "% of a year of growth"),
+                    "isat_readss" = c("ISAT Test Score- Reading", "% of a year of growth"),
+                    "Pct_Attend100" = c("Percent School Attendance", "% school day attendance"))
+    
+    for (myY in c("isat_mathss", "isat_readss", "Pct_Attend100")){
+      
+      myLabels <- unlist(yLabels[myY])
+      plotEff <- dBigNs[grepl(myY, dBigNs$id),]
+      estOrder <- order(plotEff$b)
+      plotEff$x <- gsub("org_siteCHASI_", "", plotEff$x)
+      plotEff$x <- gsub("_", " ", plotEff$x)
+      plotEff$x <- factor(plotEff$x, levels = plotEff$x[estOrder])
+      
+      # Generate comparison across Sites (within school specification)
+      ggplot(data = plotEff) +
+        geom_bar(aes(x = x, y = b, fill = b), stat = "identity", position = "dodge") +
+        geom_errorbar(aes(x = x, ymin = ll, ymax = ul), position = position_dodge(width=0.5), width=0.25, size = 0.5) +
+        scale_fill_gradient(low = "#4F91CE", high = "#78A360") + # "#4F91CE", "#78A360", "#FAAF5E"
+        ggtitle(p0("Remaining Association Between\nProgram Enrollment and ", myLabels[1])) +
+        xlab("Site") +
+        ylab(myLabels[2]) +
+        theme(title = element_text(size = 10), 
+              axis.title = element_text(size = 10, face = "bold"),
+              axis.text = element_text(size = 8, face = "bold"),
+              legend.position = "none")
+      
+      ggsave(filename = p0("./output/figures/RegFig_CHASI_bySite_", myY, ".png"), dpi = 600, width = 4.67, height = 3.50)
+    }
+  
+  #----------------------------------------------
+  ### Plot Comparisons of Estimate Specifications
+  #----------------------------------------------
+    
+    dOrg <- orgOut[grepl(".*bCHASI.*orgBin$", orgOut$id),]
+    dBigNs <- dOrg[dOrg$non0Count >= 10, ]
+    
+    for (myY in c("isat_mathss", "isat_readss", "Pct_Attend100")){
+      
+      myLabels <- unlist(yLabels[myY])
+      plotEff <- dBigNs[grepl(myY, dBigNs$id),]
+      estOrder <- order(plotEff$b)
+      plotEff$plotX <- sapply(plotEff$spec, function(s) switch(f.to.c(s),
+                                                          "raw" = "Raw Diff",
+                                                          "pre" = "Acad Traj",
+                                                          "now" = "Demogr",
+                                                          "adj" = "Traj + Demogr",
+                                                          "sch" = "Traj + Demo\n+ Sch"))
+      plotEff$plotX <- factor(plotEff$plotX, levels = c("Raw Diff", "Acad Traj", "Demogr", "Traj + Demogr", "Traj + Demo\n+ Sch"))
+      
+      # Generate comparison across Sites (within school specification)
+      ggplot(data = plotEff) +
+        geom_bar(aes(x = plotX, y = b, fill = b), stat = "identity", position = "dodge") +
+        geom_errorbar(aes(x = plotX, ymin = ll, ymax = ul), position = position_dodge(width=0.5), width=0.25, size = 0.5) +
+        #scale_fill_gradient(low = "#4F91CE", high = "#FAAF5E") + # "#4F91CE", "#78A360", "#FAAF5E"
+        scale_fill_hue(h=c("#4F91CE", "#78A360"), l=40)
+        ggtitle(p0("Comparison of Estimates Between\nCH+A Enrollment and ", myLabels[1])) +
+        xlab("Statistical Controls") +
+        ylab(myLabels[2]) +
+        theme(title = element_text(size = 10), 
+              axis.title = element_text(size = 10, face = "bold"),
+              axis.text = element_text(size = 8, face = "bold"),
+              legend.position = "none")
+      
+      ggsave(filename = p0("./output/figures/RegFig_CHASI_bySpec_", myY, ".png"), dpi = 600, width = 4.67, height = 3.50)
+    }
+  

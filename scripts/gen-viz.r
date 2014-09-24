@@ -18,9 +18,17 @@
   useScrambledData <- 0
   runDescGraphs    <- 1
 
-
   library(ggplot2)
   library(scales)
+  comment <- function(...){}
+  "%&%"   <- function(...){ paste(..., sep="") }
+  paste0  <- function(...){ paste(..., sep="") }
+  p0      <- function(...){ paste0(...) }
+  plus    <- function(...){ paste(..., collapse = "+") }
+  cn      <- function(x){ colnames(x) }
+  ep      <- function(x){ eval(parse(text = x))}
+  f.to.c  <- function(f){ return(levels(f)[f]) }
+  f.to.n  <- function(f){ return(as.numeric(levels(f)[f])) }
 
   allOrgs <- c("YMCA", "ASM", "CHASI", "UCAN", "Collab")
   
@@ -37,7 +45,6 @@
   Alphafill  <- c("#ED1C24", "#92278F", "#0089D0", "#F47920", "#01A490") 
   Betafill <- c("#3F227C", "#A4B635", "#211F21")
 
-
   # Other old fills we could use
   ##myfill1 <- c("#CC3300", "#660000") #orange/red and dark red ... NSM - these are good YMCA colors
   ##myfill2 <- c("#CC6600", "#480000") #darker orange and maroon
@@ -45,7 +52,6 @@
   ##myfill4 <- c("#CC6600", "#006666") #darker orange and teal
   ##myfill5 <- c("#CC6600", "#003333") #darker orange and darker teal
   ##bluesfill <- c("#005555", "#000077")
-  
   
   myRes <- 600
   myWidth  <- 4.67 #Using inches (for ggsave)
@@ -71,6 +77,21 @@
   descStats$org[descStats$site=='All Sch-Based Peers']  <- paste(descStats$org[descStats$site=='All Sch-Based Peers'], 'Sch-Based Peers')
   descStats$site[descStats$site=='All Sch-Based Peers'] <- 'All'
   descStats$site[descStats$site==''] <- 'Unknown'
+
+## Simplify Site Names
+  descStats$site <- gsub(" School Of Excellence", "", descStats$site)
+  descStats$site <- gsub(" Elementary", "", descStats$site)
+  descStats$site <- gsub(" Academy", "", descStats$site)
+  gsub("Howe", "", descStats$site)
+  
+## Prepare factor orders
+  for (v in c("org", "site")){
+    vVals <- unique(descStats[, v])
+    nonVals  <- grep("Non-",  vVals, value = T)
+    peerVals <- grep("Peers", vVals, value = T)
+    valVals  <- vVals[!(vVals %in% c(nonVals, peerVals))]
+    descStats[, v] <- factor(descStats[, v], levels = c(nonVals, peerVals, valVals))
+  }
   
 #---------------------------------------#
 #---------------------------------------#
@@ -81,78 +102,76 @@
 ##### Define general plotting function  ##########
   
   makePlot <- function(
-                VarList, orgnames, orgcomp = 1,
+                VarList,
+                orgnames = allOrgs, orgcomp = 1,
                 sitenames = c("All"), sitecomp = 1,
-                prognames = c("All"), grades = c("All"), 
+                prognames = c("All"),
+                grades = c("All"), 
                 years = c('All'),                        # main parameters - restrict data and shape graph
                 title = '', ylab = '', xlab = '',        # titles
-                yscaletype = "percent",                  # to see raw means rather than percents, set yscaletype = waiver()
-                xnames = waiver()                        # vector of variable names in the same order as the variables in varlist
+                yscaletype = "percent",                  # to see raw means rather than percents, set yscaletype = "comma"
+                xnames = ""                              # vector of variable names in the same order as the variables in varlist
                       ){
 
     # Print status for auditing purposes
-        print(paste("Graphing", orgnames, VarList, "for sites", sitenames, "for programs", prognames,"for years", years, "for grades", grades))
+      print(paste("Graphing", orgnames, VarList, "for sites", sitenames, "for programs", prognames,"for years", years, "for grades", grades))
     
-    # Restrict dataset based on primary parameters
+    # Restrict dataset based on specifications for the call
   
-        if (prognames[1] != 'All' | sitenames[1] != 'All') {orgcomp = 0}
-        orglist <- NULL
-        sitelist <- NULL
+      orglist <- NULL
+      sitelist <- NULL
     
-        if (orgcomp==1) {
-          for (o in orgnames) {
-            orglist <- c(orglist, unique(grep(o, descStats$org, value=T)))      # Include both Org and non-Org obs
-          }
-        } else {
-          orglist <- orgnames
+      if (prognames[1] != 'All' | sitenames[1] != 'All') { orgcomp = 0 }
+  
+      # If comparing at the level of the organization
+      if (orgcomp==1) {
+        for (o in orgnames) {
+          orglist <- c(orglist, unique(grep(o, descStats$org, value=T)))      # Include both Org and non-Org obs
+          # XXX I believe we could get the same effect from orglist <- grep(paste(orgnames, collapse="|"), descStats$org, value = T)
         }
-        
-        if (sitecomp==1) {
-          for (s in sitenames) {
-            sitelist <- c(sitelist, unique(grep(s, descStats$site, value=T)))  # Include school based peers
-          }  
-        } else {
-          sitelist <- sitenames
-        }
-    
-    
-        if (years[1] == 'All') {useYr <- unique(descStats$year)} else {useYr <- years}
-        
-        data <- descStats[
-                (descStats$org      %in% orglist  & 
-                 descStats$site     %in% sitelist & 
-                 descStats$program  %in% prognames &
-                 descStats$grade    %in% grades    &
-                 descStats$year     %in% useYr     &
-                 descStats$variable %in% VarList), ]
-    
-        #data <- data[!is.na(mean(data$mean, na.rm = T)),] # Remove obs that are NA for mean
-        data <- data[!is.na(data$mean), ] # Remove obs that are NA for mean
+      } else {
+        orglist <- orgnames
+      }
+      
+      # If comparing at the level of the site
+      if (sitecomp==1) {
+        for (s in sitenames) {
+          sitelist <- c(sitelist, unique(grep(s, descStats$site, value=T)))  # Include school based peers
+          # XXX See above for grep() alternative
+        }  
+      } else {
+        sitelist <- sitenames
+      }
+  
+      # Handle number of years represented
+      if (years[1] == 'All') {useYr <- unique(descStats$year)} else {useYr <- years}
+      
+      # Subset
+      data <- descStats[with(descStats, org %in% orglist &site %in% sitelist & program %in% prognames &
+                               grade %in% grades & year %in% useYr & variable %in% VarList), ]
+  
+      #data <- data[!is.na(mean(data$mean, na.rm = T)),] # Remove obs that are NA for mean
+      data <- data[!is.na(data$mean), ] # Remove obs that are NA for mean
+      data$site <- factor(as.character(data$site)) # Resets the levels to only the specified sites
     
     if (nrow(data)==0) {
       print("No data")
     } else {
     
     # Convert year to numeric for plots over time
-        
       if (years[1] != "All") {data$year <- as.numeric(data$year)}
     
     # Make sure that graph will display variables from L to R in the order specified in VarList
-    
       data$variable <- factor(data$variable, levels = VarList) 
-    
-    # Print dataset for debugging purposes (remove this once all is final)
-    
-     # print(data)
     
     # Define the fill value as a part of the data frame (aes.fill can only equal a variable in the df)
     
       if (sitenames[1] != "All") { 
-        data$fill = data$site 
+        data$fill <- data$site 
       } else if (prognames[1] != 'All') { 
-        data$fill = data$program
+        data$fill <- data$program
       } else {
-        data$fill = data$org
+        data$fill <- data$org
       }
     
     # Define the fill to match organization
@@ -172,8 +191,8 @@
       if (is.na(years[2])) { # Generate plots across single year
         plot <- ggplot(data=data, aes(x=variable, y=mean, fill = fill)) + 
                 geom_bar(stat = 'identity', position = 'dodge', width=0.7) +
-                ggtitle(title) +
-                scale_y_continuous(labels = eval(parse(text = yscaletype)), name = ylab) +
+                ggtitle(title) + 
+                scale_y_continuous(labels = eval(parse(text = yscaletype)), name = ylab, breaks = waiver()) +
                 scale_x_discrete(name = xlab, labels = xnames) +
                 guides(fill = guide_legend(title = NULL)) + theme(legend.position = 'bottom') +
                 scale_fill_manual(values = useFill) +
@@ -184,7 +203,7 @@
                 geom_point() + geom_line() +
                 scale_color_manual(values = useFill) +
                 ggtitle(title) +
-                scale_y_continuous(labels = eval(parse(text = yscaletype)), name = ylab) +
+                scale_y_continuous(lables = eval(parse(text = yscaletype)), name = ylab, breaks = waiver()) +
                 scale_x_continuous(name = xlab) +
                 guides(color = guide_legend(title = NULL)) + theme(legend.position = 'bottom') +
                 theme(axis.title.y = element_text(size = 8))
@@ -219,9 +238,21 @@
       }
   }
 
-
-  
   # Samples of function in action - this code can be removed eventually
+  makePlot("bLunch_FR", orgnames = "CHASI", title = "% Free/Reduced Price Lunch", ylab = 'Proportion on Free/Reduced Price Lunch', years = '2013')  
+  makePlot(c("isat_mathpl_ME", "isat_readpl_ME"), orgnames = "CHASI", title = "ISAT Proficiency - Meets Exceeds", ylab = '% Meets/Exceeds', years = '2013', xnames = c("Math", "Reading"))
+  makePlot(c("Tract_ViolentCrimes_PerHundr"), orgnames = "CHASI", title = "Neighborhood Violence", ylab = 'Violent Crimes Per 100 Residents', years = '2013', yscaletype = "comma")
+  makePlot(c("Tract_ViolentCrimes_PerHundr", "Tract_Pct_LtHsEd"), orgnames = "CHASI", title = "Neighborhood Characteritics", ylab = '', years = '2013', yscaletype = "comma", xnames = c("Violent Crimes\nper 100", "Adults < HS Ed"))
+  makePlot(c("bRace_B", "bRace_H"), orgnames = "CHASI", title = "Youth Race/Ethnicity", ylab = '% of Youth', years = '2013', xnames = c("Af Am", "Hispanic"))
+
+  CHASIsites <- unique(as.character(descStats$site[descStats$org == "CHASI"]))
+  CHASIsites <- CHASIsites[!grepl("All|Peers", CHASIsites)]
+  makePlot("bLunch_FR", orgnames = "CHASI", sitenames = CHASIsites, sitecomp = 0, title = "% Free/Reduced Price Lunch", ylab = 'Proportion on Free/Reduced Price Lunch', years = '2013')  
+  makePlot("isat_mathpl_ME", orgnames = "CHASI", sitenames = CHASIsites, sitecomp = 0, title = "ISAT Math Proficiency - Meets Exceeds", ylab = '% Meets/Exceeds', years = '2013')
+  makePlot("Tract_ViolentCrimes_PerHundr", orgnames = "CHASI", sitenames = CHASIsites, sitecomp = 0, title = "Neighborhood Violence", ylab = 'Violent Crimes Per 100 Residents', years = '2013', yscaletype = "comma")
+  makePlot("bRace_B", orgnames = "CHASI", sitenames = CHASIsites, sitecomp = 0, title = "Youth Race - African American", ylab = '% African American Youth', years = '2013')
+  makePlot("bRace_H", orgnames = "CHASI", sitenames = CHASIsites, sitecomp = 0, title = "Youth Race - Hispanic", ylab = '% Hispanic Youth', years = '2013')
+  
   
 #   # Continuous Plot - for one org, multiple orgs, one site, and multiple sites
 #   makePlot("bLunch_FR", orgnames = "YMCA", title = "% Free/Reduced Price Lunch", ylab = 'Proportion on Free/Reduced Price Lunch', years = '2013')
