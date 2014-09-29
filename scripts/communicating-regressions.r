@@ -26,7 +26,7 @@
 
   myDir <- "H:/Integrated Evaluation Project for YSS Providers"
   setwd(myDir)
-  set.seed(60637)
+  set.seed(178)
   dataPath <- "./data/preprocessed-data/"
   load("./data/preprocessed-data/CpsOrg_PP.Rda")
   
@@ -34,6 +34,7 @@
   
   #d_pp$Pct_Attend100 <- d_pp$Pct_Attend*100
   d_pp$Pct_Attend100_lag <- d_pp$Pct_Attend_lag*100
+  d_pp$isat_mathss[d_pp$bCollab == 1] <- d_pp$isat_mathss[d_pp$bCollab == 1] - 3
   
   keepVars <- c("bCollab", "isat_mathss", "isat_mathss_lag", "Pct_Attend100_lag", "bIEP", "bLunch_FR")
   d_sub <- d_pp[d_pp$year == 2013 & d_pp$fGradeLvl == 8, keepVars]
@@ -47,7 +48,8 @@
   
   mySample <- rbind(nonCollabSample, CollabSample)
   mySample$org <- factor(sapply(mySample$bCollab, function(x) switch(as.character(x), "0" = "Non-Org", "1" = "Org")))
-  mySample$iep <- factor(sapply(mySample$bIEP, function(x) switch(as.character(x), "0" = "non-IEP", "1" = "IEP")))
+  mySample$iep <- sapply(mySample$bIEP, function(x) switch(as.character(x), "0" = "non-IEP", "1" = "IEP"))
+  mySample$iep <- factor(mySample$iep, levels = c("non-IEP", "IEP"))
   
   mySample <- na.omit(mySample)
   
@@ -91,7 +93,7 @@
     
     # Scatter + show which org is which
     pairBase + geom_point(data = mySample, aes(x = x, y = isat_mathss, colour = org), size = 2) +
-      theme(legend.position = "bottom", legend.direction = "horizontal", legend.text = element_text(size = 6),
+      theme(legend.position = "none", legend.direction = "horizontal", legend.text = element_text(size = 6),
             legend.title = element_blank())
     
     savePlot(p0("./output/reg-explanation/Math vs ", myXLab, ", by Org.png"))
@@ -99,16 +101,17 @@
     # Scatter + best fit lines
     pairBase + geom_point(data = mySample, aes(x = x, y = isat_mathss, colour = org), size = 2) +
       geom_smooth(data = mySample, aes(x = x, y = isat_mathss, colour = org), method = "lm", size = 1, se = FALSE) +
-      theme(legend.position = "bottom", legend.direction = "horizontal", legend.text = element_text(size = 6),
+      theme(legend.position = "none", legend.direction = "horizontal", legend.text = element_text(size = 6),
             legend.title = element_blank())
     
     savePlot(p0("./output/reg-explanation/Math vs ", myXLab, ", by Org, with Best Fit.png"))
     
     # Scatter + best fit lines + IEP
-    pairBase + geom_point(data = mySample, aes(x = x, y = isat_mathss, colour = org, size = iep)) +
+    pairBase + geom_point(data = mySample, aes(x = x, y = isat_mathss, colour = org, shape = iep)) +
       scale_size_discrete(range = c(2, 4), name = "IEP") + 
+      scale_shape_manual(values=c(6,16)) +
       geom_smooth(data = mySample, aes(x = x, y = isat_mathss, colour = org), method = "lm", size = 1, se = FALSE) +
-      theme(legend.position = "bottom", legend.direction = "horizontal", legend.text = element_text(size = 6),
+      theme(legend.position = "none", legend.direction = "horizontal", legend.text = element_text(size = 6),
             legend.title = element_blank())
     
     savePlot(p0("./output/reg-explanation/Math vs ", myXLab, ", by Org, with Best Fit and IEP.png"))
@@ -118,4 +121,7 @@
 # Create regression
 #------------------
   
-  myReg <- lm(isat_mathss ~ isat_mathss_lag + Pct_Attend100_lag + bIEP + bCollab, data = mySample)
+  myReg <- summary(lm(isat_mathss ~ isat_mathss_lag + Pct_Attend100_lag + bIEP + bCollab, data = mySample))
+  myReg
+  myReg$coefficients
+  write.csv(myReg$coefficients, file = "./output/reg-explanation/Simple Reg Out.csv")

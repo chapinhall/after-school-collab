@@ -243,7 +243,7 @@
   makePlot(c("isat_mathpl_ME", "isat_readpl_ME"), orgnames = "CHASI", title = "ISAT Proficiency - Meets Exceeds", ylab = '% Meets/Exceeds', years = '2013', xnames = c("Math", "Reading"))
   makePlot(c("Tract_ViolentCrimes_PerHundr"), orgnames = "CHASI", title = "Neighborhood Violence", ylab = 'Violent Crimes Per 100 Residents', years = '2013', yscaletype = "comma")
   makePlot(c("Tract_ViolentCrimes_PerHundr", "Tract_Pct_LtHsEd"), orgnames = "CHASI", title = "Neighborhood Characteritics", ylab = '', years = '2013', yscaletype = "comma", xnames = c("Violent Crimes\nper 100", "Adults < HS Ed"))
-  makePlot(c("bRace_B", "bRace_H"), orgnames = "CHASI", title = "Youth Race/Ethnicity", ylab = '% of Youth', years = '2013', xnames = c("Af Am", "Hispanic"))
+  makePlot(c("bRace_B", "bRace_H"), orgnames = "CHASI", title = "Youth Race/Ethnicity", ylab = '% of Youth', years = '2013', xnames = c("African American", "Hispanic"))
 
   CHASIsites <- unique(as.character(descStats$site[descStats$org == "CHASI"]))
   CHASIsites <- CHASIsites[!grepl("All|Peers", CHASIsites)]
