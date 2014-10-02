@@ -13,7 +13,7 @@
 
   rm(list=ls())
   try(setwd("/projects/Integrated_Evaluation_Youth_Support_Services"), silent=T)
-  try(setwd("H:/Integrated Evaluation Project for YSS Providers"), silent=T)
+  try(setwd("H:/Integrated Evaluation Project for YSS Providers/Analysis/"), silent=T)
   
   dataPath <- "./data/preprocessed-data/" # File path to locate and save data
   scriptPath <- "~/GitHub/after-school-collab/scripts"
@@ -39,10 +39,8 @@
   } else {
   	load(dataPath %&% "EnrCpsAcs.Rda")
     myData <- EnrCpsAcs
-    rm(EnrCpsAcs)
-    
-    orglist <- c("YMCA", "ASM", "CHASI", "UCAN") # UPDATE HERE AS WE HAVE DATA FOR NEW PARTNERS TO INCLUDE IN TOTALS.
-    
+    rm(EnrCpsAcs)    
+    orglist <- c("YMCA", "ASM", "CHASI", "UCAN", "CPL") # UPDATE HERE AS WE HAVE DATA FOR NEW PARTNERS TO INCLUDE IN TOTALS.
   } 
 
   
@@ -50,19 +48,12 @@
 ## Select variables to summarize
 #-------------------------------
 
-  # Create individual variance statistics for My Voice, My School variables
-#     for (m in c("AcadEng", "Comm", "EmHealth", "Parent", "Peer", "Study", "Safety", "Connect", "Respect")){ # Not yet in the data set... 
-#       seVar <- paste0("MVMS_", m, "_se")
-#       s2Var <- paste0("MVMS_", m, "_s2")
-#       myData[, s2Var] <- myData[, seVar]^2
-#       myData <- myData[, -which(colnames(myData) %in% seVar)]
-#     }
-
   # Build a list of descriptive variables
   cNames <- colnames(myData)
   descVars <- c("bOnTrack", "bGender_Male", "bGender_Female", "bIEP", "iep_test", "lep_test", "lunch_test",
                 grep("Pct_Attend",cNames, value=T),
                 grep("isat_",     cNames, value=T),
+                grep("nwea_",     cNames, value=T),
                 grep("explore_",  cNames, value=T),
                 grep("plan_",     cNames, value=T),
                 grep("psae_",     cNames, value=T),
@@ -85,8 +76,14 @@
     }
   } # XXX There's may be a more elegant way to do this. Note that model.matrix(~0+var) drops observations with NAs, returning a vector of shorter length (which, at this stage, we don't want)
   descVars <- descVars[!(descVars %in% c("isat_mathpl", "isat_readpl"))] # Remove character variables
+
+  # XXX Need to revisit where these variables are being generated as a character
+  convVars <- c("lunch_test", "explore_compss", "plan_compss", "plan_mathss", "plan_readss", "plan_engss", "plan_sciess")
+  for (v in convVars){
+    myData[, v]  <- as.numeric(myData[, v])  
+  }
   
-  subVars <- c("sid", "org", "Collab", orglist, "site", "program", "fGradeLvl", "fGradeGrp_K5_68_HS", "year", "schlid", descVars) 
+  subVars <- c("sid", "org", "Collab", orglist, "site", "program", "schlname", "fGradeLvl", "fGradeGrp_K5_68_HS", "year", "schlid", descVars) 
   calcData <- myData[, subVars]
   rm(myData)
   
@@ -111,16 +108,17 @@
     for (myOrg in orglist){
       print(paste0("Initiating calculations for ", myOrg))
       stats.byOrg     <- runStats(byOrgVar = myOrg, byYearVar = "year")
-      stats.byOrgGrp  <- runStats(byOrgVar = myOrg, byYearVar = "year", byGradeVar = "fGradeGrp_K5_68_HS")
-      stats.byOrgGr   <- runStats(byOrgVar = myOrg, byYearVar = "year", byGradeVar = "fGradeLvl")
-      stats.bySite    <- runStats(byOrgVar = myOrg, byYearVar = "year", bySiteVar = "site")
+      stats.byOrgGrp  <- runStats(byOrgVar = myOrg, byYearVar = "year", byGradeVar   = "fGradeGrp_K5_68_HS")
+      stats.byOrgGr   <- runStats(byOrgVar = myOrg, byYearVar = "year", byGradeVar   = "fGradeLvl")
+      stats.bySite    <- runStats(byOrgVar = myOrg, byYearVar = "year", bySiteVar    = "site")
       stats.byProg    <- runStats(byOrgVar = myOrg, byYearVar = "year", byProgramVar = "program")
-      stats.org       <- rbind(stats.org, stats.byOrg, stats.bySite, stats.byProg, stats.byOrgGrp, stats.byOrgGr) #stats.bySiteGr, stats.bySiteGrp, stats.byProgGr, stats.byProgGrp)
+      #stats.bySchl    <- runStats(byOrgVar = myOrg, byYearVar = "year", bySchlVar    = "schlname")
+      stats.org       <- rbind(stats.org, stats.byOrg, stats.bySite, stats.byProg, stats.byOrgGrp, stats.byOrgGr) # stats.bySchl  #stats.bySiteGr, stats.bySiteGrp, stats.byProgGr, stats.byProgGrp)
     }
     
-  colnames(stats.org)[1:5] <- c("org", "site", "program", "grade", "year")
+  colnames(stats.org)[1:6] <- c("org", "site", "program", "schlname", "grade", "year")
   
-  rm(stats.byOrg, stats.byOrgGrp, stats.byOrgGr, stats.bySite, stats.byProg) # stats.bySiteGr, stats.bySiteGrp, stats.byProgGr, stats.byProgGrp)
+  rm(stats.byOrg, stats.byOrgGrp, stats.byOrgGr, stats.bySite, stats.byProg) # stats.bySchl # stats.bySiteGr, stats.bySiteGrp, stats.byProgGr, stats.byProgGrp)
 
   
 #----------------------------------------------------------------------------
@@ -139,7 +137,7 @@
   ## Call the peer averages function, and save and close up
   #--------------------------------------------------------
   
-    subsetVars <- c("org", "site", "program", "grade", "year")
+    subsetVars <- c("org", "site", "program", "schlname", "grade", "year")
     runList <- unique(stats.org[, subsetVars]) # Necessary because stats.org is one line per variable
     naRows <- apply(runList, 1, function(x) any(is.na(x)))
     runList <- runList[!naRows, ]
@@ -151,15 +149,16 @@
 
     nRuns <- nrow(rl)
     stats.peers <- NULL
-    calcData <- data.table(calcData, key="org,site,program,year,fGradeGrp_K5_68_HS,fGradeLvl")
+    calcData <- data.table(calcData, key="org,site,program,schlname,year,fGradeGrp_K5_68_HS,fGradeLvl")
 
     for (i in 1:nRuns){
       
-      org <- rl$org[i]; site <- rl$site[i]; program <- rl$program[i]; grade <- rl$grade[i]; year <- rl$year[i];
+      org <- rl$org[i]; site <- rl$site[i]; program <- rl$program[i]; schlname <- rl$schlname[i]; grade <- rl$grade[i]; year <- rl$year[i];
 
       focalRows <- getSubset("org", org) & 
                    getSubset("site", site) &
                    getSubset("program", program) &
+                   getSubset("schlname", schlname) &
                    getSubset("grade", grade) &
                    getSubset("year", as.numeric(year))
       myFocals      <- subset(calcData, subset = as.vector(focalRows), select = c("sid", "schlid", descVars))
@@ -178,10 +177,10 @@
       myPeers <- data.table(myPeers, key = "schlid")
       
       # Set up header for identifying calculations
-      outHeader <- data.frame(org = rl$org[i], site = rl$site[i], program = rl$program[i], grade = rl$grade[i], year = rl$year[i])
+      outHeader <- data.frame(org = rl$org[i], site = rl$site[i], program = rl$program[i], schl = rl$schl[i], grade = rl$grade[i], year = rl$year[i])
       
       # Run calculations variable by variable since different variables by school may have different numbers of NAs to drop
-      print(paste("Performing run ", i, " of ", nRuns, "or ", round(i/nRuns, 3)*100, "% done. Run is for: org =", org, ", site =", site, ", program =", program, ", grade =", grade, ", year =", year))
+      print(paste("Performing run", i, "of ", nRuns, "or ", round(i/nRuns, 3)*100, "% done. Run is for: org =", org, ", site =", site, ", program =", program, ", schlname =", schlname, ", grade =", grade, ", year =", year))
       
       for (v in descVars){
         
@@ -206,25 +205,29 @@
     }
 
     stats.peers$site <- paste(stats.peers$site, "Sch-Based Peers")
+    colnames(stats.peers)[cn(stats.peers)=="schl"] <- "schlname"
 
 #-------------------------
 ## Compile and save output
 #-------------------------
-
+    
     descStats    <- rbind(stats.org[, colnames(stats.peers)], stats.peers)
     descStats$plusminus <- descStats$se_mean * 1.96
-    descStats$id <- paste(descStats$org, descStats$site, descStats$program, descStats$grade, descStats$year, descStats$variable, sep="_")
-    # Suppress calculations for small or invalid calculations
-    descStats$plusminus[descStats$n  < 10] <- NA
-    descStats$plusminus[descStats$n == NA] <- NA
-    descStats$mean[descStats$n  < 10]      <- NA
-    descStats$mean[descStats$n == NA]      <- NA
+    descStats <- within(descStats, {
+      id <- paste(org, site, program, schlname, grade, year, variable, sep="_")
+      
+      # Suppress calculations for small or invalid calculations
+      plusminus[n  < 10] <- NA
+      plusminus[n == NA] <- NA
+      mean[n  < 10]      <- NA
+      mean[n == NA]      <- NA
+    })
 
     save(descStats, file = paste0(dataPath, "descStats.Rda"))
     write.csv(descStats, file = paste0(dataPath, "descStats.csv"))
     #descStats <- read.csv(paste0(dataPath, "descStats.csv"))
 
-    combos <- unique(descStats[, c("org", "site", "program", "grade", "year")])
+    combos <- unique(descStats[, c("org", "site", "program", "schlname", "grade", "year")])
     combos$id <- paste(combos$org, combos$site, combos$program, combos$grade, combos$year, sep="_")
     combos$gradefilter <- ifelse(combos$grade!="All" & (combos$site!="All" | combos$program!="All"), 1, 0)
     rownames(combos) <- NULL

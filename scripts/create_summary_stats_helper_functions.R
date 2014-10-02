@@ -27,10 +27,10 @@
 
   # byOrgVar=""; byProgramVar=""; bySiteVar=""; byGradeVar=""; byYearVar=""; byOrgVar = "Collab"; byYearVar = "year"
   fnCount <- function(x) sum(!is.na(x))
-  runStats <- function(data = calcData, vars = descVars, byOrgVar="", byProgramVar="", bySiteVar="", byGradeVar="", byYearVar=""){
+  runStats <- function(data = calcData, vars = descVars, byOrgVar="", byProgramVar="", bySiteVar="", bySchlVar="", byGradeVar="", byYearVar=""){
 
     # If we'll be looking at program or site level variation, discard "non-<that site/that prog>" records:
-      if(byProgramVar=="" & bySiteVar=="") {
+      if(byProgramVar=="" & bySiteVar=="" & bySchlVar=="") {
         useData <- data
       } else if (byOrgVar %in% orglist) { 
         useData <- data[data$org==byOrgVar, ]
@@ -39,7 +39,7 @@
       }
       
     # Determine what other by variables are needed, and unduplicate records
-      potentialBys <- c(byOrgVar, byProgramVar, bySiteVar, byGradeVar, byYearVar)
+      potentialBys <- c(byOrgVar, byProgramVar, bySiteVar, bySchlVar, byGradeVar, byYearVar)
       byVars <- potentialBys[potentialBys!=""]
       keepRows <- !duplicated(useData[, c("sid", byVars)])
       useData <- useData[keepRows,]
@@ -50,6 +50,7 @@
       useDt <- data.table(useData, key = byVars.str)
       
       # XXX Could this be simplified with ddply(), which allows both subsetting and multiple calculations?
+      # XXX Note that the pastecs package has the function stat.desc which calculates a wide range of useful descriptive stats
       dtMeans <- useDt[, lapply(.SD, mean, na.rm=T), by = byVars.str, .SDcols = vars]
       dtS2    <- useDt[, lapply(.SD, var,  na.rm=T), by = byVars.str, .SDcols = vars]
       dtNs    <- useDt[, lapply(.SD, fnCount),       by = byVars.str, .SDcols = vars]
@@ -64,7 +65,7 @@
       out$se_mean <- sqrt(out$var_mean)
 
     # Generate uniform output columns
-      outBys <- c("org", "site", "program", "grade", "year")
+      outBys <- c("org", "site", "program", "schl", "grade", "year")
       for (outCol in outBys){
         colVar <- paste0("by", prop.case(outCol), "Var")
         if (get(colVar) == ""){
