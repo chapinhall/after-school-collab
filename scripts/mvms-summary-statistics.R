@@ -14,16 +14,18 @@
 
   rm(list=ls())
   #myDir <- "/projects/Integrated_Evaluation_Youth_Support_Services/"
-  myDir <- "H:/Integrated Evaluation Project for YSS Providers"
+  myDir <- "H:/Integrated Evaluation Project for YSS Providers/Analysis"
   setwd(myDir)
   dataPath <- "./data/preprocessed-data/"
   
 ## Set up useful libraries and functions   
    
   library(ggplot2)
+  library(pastecs)
   comment <- function(...){}
   "%&%"   <- function(...){ paste(..., sep="") }
   paste0  <- function(...){ paste(..., sep="") }
+  p0      <- function(...){ paste(..., sep="") }
   cn      <- function(x){ colnames(x) }
   ep      <- function(x){ eval(parse(text = x))}
   f.to.c  <- function(f){ return(levels(f)[f]) }
@@ -34,38 +36,29 @@
   load("./data/preprocessed-data/CpsOrg_PP.Rda")
   mvmsVars <- grep("MVMS_.+[^se]$", cn(d_pp), value = T)
   years <- unique(d_pp$year)
-  d_m <- d_pp[d_pp$year %in% 2011:2013, c("year", mvmsVars)]
+  d_m <- d_pp[d_pp$year %in% 2012:2014, c("year", mvmsVars)]
   
 ## Generate labels for the MVMS factors:
   
   mvmsLabels <- c("Academic Engagement", "Emotional Health", "Human & Social Resources in Community", "Parent Supportiveness",
                   "Peer Support for Academic Work", "Rigorous Study Habits", "Safety", "School Connectedness", "Student Classroom Behavior")
   names(mvmsLabels) <- c("MVMS_AcadEng", "MVMS_EmHealth", "MVMS_Comm", "MVMS_Parent", "MVMS_Respect", "MVMS_Study", "MVMS_Safety", "MVMS_Connect", "MVMS_Peer")
-  
-  # *** Note: it seems incongruous, but true that the "PEER" question bank in the MVMS codebook is described as "Student Classroom Behavior"
-  # in the 5Essentials reports.
-                  
-## Generate a table with descriptive statistics by year and MVMS measure -- 
-  getStats <- function(y, x) {
-    m <- d_m[d_m$year == y, x]
-    out <- data.frame(mean = mean(m, na.rm = T),
-                      median = median(m, na.rm = T),
-                      sd = sd(m, na.rm = T),
-                      q25 = quantile(m, 0.25, na.rm = T),
-                      q75 = quantile(m, 0.75, na.rm = T))
-    out$variable  <- x
-    out$year <- y
-    out$id <- paste(x, y, sep = "_")
-    return(out)
+    # *** Note: it seems incongruous, but true that the "PEER" question bank in the MVMS codebook is described as "Student Classroom Behavior"
+    # in the 5Essentials reports.
+
+  stats <- NULL
+  for (y in 2012:2014) {
+    out <- stat.desc(d_m[d_m$year == y, mvmsVars])
+    colnames(out) <- mvmsVars
+    out$id <- p0(rownames(out), "_", y); rownames(out) <- NULL
+    stats <- rbind(stats, out)
   }
-  stats <- t(mapply(getStats,
-                    rep(2011:2013, times = length(mvmsVars)),
-                    rep(mvmsVars, each = length(2011:2013))))
-  write.csv(stats, file = "./output/mvms-stats.csv")
   
-  # Calculate and output correlations
-    mvmsRho <- cor(d_m[, mvmsVars], use = "pairwise.complete.obs")
-    write.csv("./output/mvms-pairwise-correlations.csv")
+  write.csv(stats, file = "./output/mvms-stats.csv", row.names = F)
+  
+## Calculate and output correlations
+  mvmsRho <- cor(d_m[, mvmsVars], use = "pairwise.complete.obs")
+  write.csv("./output/mvms-pairwise-correlations.csv", row.names = F)
   
 ## Generate figures to show the distribution of values
   # Histogram (of only 2012-13, which is used for centering) for more lay audiences
