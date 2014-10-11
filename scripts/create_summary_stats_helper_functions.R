@@ -15,6 +15,7 @@
   ep <- function(x){ eval(parse(TEXT = x))}
   "%&%" <- function(...) { paste(..., sep="")}
   paste0 <- function(...) { paste(..., sep="")}
+  p0     <- function(...) { paste(..., sep="")}
   prop.case = function(str) { # Thanks to John Myles White http://www.johnmyleswhite.com/notebook/2009/02/25/text-processing-in-r/
     substr(str, 1, 1) = toupper(substr(str, 1, 1))
     return(str)
