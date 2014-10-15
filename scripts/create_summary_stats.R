@@ -15,7 +15,7 @@
   try(setwd("/projects/Integrated_Evaluation_Youth_Support_Services"), silent=T)
   try(setwd("H:/Integrated Evaluation Project for YSS Providers/Analysis/"), silent=T)
   
-  dataPath <- "./data/preprocessed-data/" # File path to locate and save data
+  dataPath <- "./data/constructed-data/" # File path to locate and save data
   scriptPath <- "~/GitHub/after-school-collab/scripts"
 
   library("reshape")
@@ -40,10 +40,17 @@
   	load(dataPath %&% "EnrCpsAcs.Rda")
     myData <- EnrCpsAcs
     rm(EnrCpsAcs)    
-    orglist <- c("YMCA", "ASM", "CHASI", "UCAN", "CPL") # UPDATE HERE AS WE HAVE DATA FOR NEW PARTNERS TO INCLUDE IN TOTALS.
+    orglist <- c("YMCA", "ASM", "CHaA", "UCAN", "CPL") # UPDATE HERE AS WE HAVE DATA FOR NEW PARTNERS TO INCLUDE IN TOTALS.
   } 
 
+#---------------------------------------------------------
+## Select which program categories to use for calculations
+#---------------------------------------------------------
   
+  # ASM sites are too detailed and too numerous to be a useful level of summary.
+  #   Instead, we will generate "site" calculations based on site type, e.g. "Church", "Community Center", etc.
+  myData$site[myData$org == "ASM"] <- myData$sitetype[myData$org == "ASM"]
+
 #-------------------------------
 ## Select variables to summarize
 #-------------------------------
@@ -61,7 +68,7 @@
                 grep("bLunch",    cNames, value=T),
                 grep("Tract_",    cNames, value=T),
                 grep("MVMS_.+[^se]$", cNames, value=T)) # This gets anything that starts with "MVMS", and doesn't end with "se"
-                #grep("MVMS_",     cNames, value=T)) # "bHsGrad", 
+                # "bHsGrad", 
 
   # Create dummy variables of catVar values to be treated as continuous vars
   catVars <- c("isat_mathpl", "isat_readpl", "fGradeLvl")
@@ -177,7 +184,7 @@
       myPeers <- data.table(myPeers, key = "schlid")
       
       # Set up header for identifying calculations
-      outHeader <- data.frame(org = rl$org[i], site = rl$site[i], program = rl$program[i], schl = rl$schl[i], grade = rl$grade[i], year = rl$year[i])
+      outHeader <- data.frame(org = rl$org[i], site = rl$site[i], program = rl$program[i], schlname = rl$schl[i], grade = rl$grade[i], year = rl$year[i])
       
       # Run calculations variable by variable since different variables by school may have different numbers of NAs to drop
       print(paste("Performing run", i, "of ", nRuns, "or ", round(i/nRuns, 3)*100, "% done. Run is for: org =", org, ", site =", site, ", program =", program, ", schlname =", schlname, ", grade =", grade, ", year =", year))
@@ -195,7 +202,8 @@
           peerStats_bySch <- runStats(data = myPeers, vars = v, bySiteVar = "schlid") # Note: omission of all byVar arguments uses all observations
           colnames(peerStats_bySch)[colnames(peerStats_bySch) == "site"] <- "sch"
           peerStats_bySch <- peerStats_bySch[!is.na(peerStats_bySch$mean), ]
-          peerStats_bySch[peerStats_bySch$n == 1, c("var", "sd", "var_mean", "se_mean")] <- 0
+          try(peerStats_bySch[peerStats_bySch$n == 1, c("var", "sd", "var_mean", "se_mean")] <- 0, silent=T)
+            # XXX This is a bit of a stop-gap, since some calculations have zero rows after
         
         # Get weighted average
           peerStat <- peerStats.fn(myProps = schP, myVar = v, mySchStats = peerStats_bySch)
@@ -224,8 +232,11 @@
     })
 
     save(descStats, file = paste0(dataPath, "descStats.Rda"))
-    write.csv(descStats, file = paste0(dataPath, "descStats.csv"))
-    #descStats <- read.csv(paste0(dataPath, "descStats.csv"))
+
+    # Subset the file for handling, since the total size is getting to be unnecessarily unwieldy. At one point, this was 47mb. This subsetting halves the size.
+    
+    descStatsOut <- descStats[, c("mean", "n", "var_mean", "se_mean", "plusminus", "id")] 
+    write.csv(descStatsOut, file = paste0(dataPath, "descStats.csv"), row.names = F)
 
     combos <- unique(descStats[, c("org", "site", "program", "schlname", "grade", "year")])
     combos$id <- paste(combos$org, combos$site, combos$program, combos$grade, combos$year, sep="_")
