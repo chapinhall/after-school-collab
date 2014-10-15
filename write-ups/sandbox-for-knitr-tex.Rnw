@@ -4,6 +4,9 @@
 \begin{document}
 \title{Sample Report}
 
+\maketitle
+
+
 % Can insert loops into http://stackoverflow.com/questions/15396755/using-loops-with-knitr-to-produce-multiple-pdf-reports-need-a-little-help-to
 % Check out this nice little intro to Sweave: http://beckmw.files.wordpress.com/2014/02/sweave_intro1.pdf
 
