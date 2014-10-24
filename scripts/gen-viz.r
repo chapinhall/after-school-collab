@@ -338,12 +338,14 @@
 
 if (1==runDescGraphs) {
 
+  # Run all graphs for a given org, site, and program
   runAllGraphTypes <- function(orgname, sitename = "All", progname = "All") {
     mapply(makePlot, VarList = varlists, xnames = xnamelists, title = titlelist, ylab = ylablist,
            yscaletype = yscalelist, orgnames = orgname, sitenames = sitename, prognames = progname)
   }
   
-  runGraphsForOrg <- function(orgname) {
+  # Run graphs for 
+  runGraphsForOrg_bySite <- function(orgname) {
     sites <- unique(descStats$site[descStats$org == orgname])
     sites <- sites[!grepl('Sch-Based Peers', sites)]
     lapply(sites, runAllGraphTypes, orgname = orgname)
