@@ -22,15 +22,7 @@
   library(ggplot2)
   library(scales)
   library(reshape)
-  comment <- function(...){}
-  "%&%"   <- function(...){ paste(..., sep="") }
-  paste0  <- function(...){ paste(..., sep="") }
-  p0      <- function(...){ paste0(...) }
-  plus    <- function(...){ paste(..., collapse = "+") }
-  cn      <- function(x){ colnames(x) }
-  ep      <- function(x){ eval(parse(text = x))}
-  f.to.c  <- function(f){ return(levels(f)[f]) }
-  f.to.n  <- function(f){ return(as.numeric(levels(f)[f])) }
+  source("./helper-functions.r") # XXX Need a way to identify the folder of the current file
 
   allOrgs <- c("YMCA", "ASM", "CHaA", "UCAN", "Collab")
   
@@ -56,8 +48,8 @@
   ##bluesfill <- c("#005555", "#000077")
   
   myRes <- 600
-  myWidth  <- 4.67 #Using inches (for ggsave). This is 2800 in pixels.
-  myHeight <- 3.50 #Using inches (for ggsave). This is 2100 in pixels.
+  myWidth  <- 4.67 # Using inches (for ggsave). This is 2800 in pixels.
+  myHeight <- 3.50 # Using inches (for ggsave). This is 2100 in pixels.
   
 #-----------------------
 ## Load and Prepare Data
@@ -74,7 +66,7 @@
   
     load(p0(dataPath, "descStats", scramInd, ".Rda"))
     
-  ## Small data change - move org level school based peers indicator to Org variable    
+  ## Small data change - move designation of "all school based peers" to the name of the "org"
     descStats$org[descStats$site=='All Sch-Based Peers']  <- paste(descStats$org[descStats$site=='All Sch-Based Peers'], 'Sch-Based Peers')
     descStats$site[descStats$site=='All Sch-Based Peers'] <- 'All'
     descStats$site[descStats$site==''] <- 'Unknown'
