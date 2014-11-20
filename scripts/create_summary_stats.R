@@ -57,15 +57,17 @@
 
   # Build a list of descriptive variables
   cNames <- colnames(myData)
-  descVars <- c("bOnTrack", "bGender_Male", "bGender_Female", "bIEP", "iep_test", "lep_test", "lunch_test",
-                grep("Pct_Attend",cNames, value=T),
-                grep("isat_",     cNames, value=T),
-                grep("nwea_",     cNames, value=T),
-                grep("explore_",  cNames, value=T),
-                grep("plan_",     cNames, value=T),
-                grep("psae_",     cNames, value=T),
-                grep("bRace",     cNames, value=T),
-                grep("bLunch",    cNames, value=T),
+  descVars <- c("bGender_Male", "bGender_Female", "bIEP", "bEll", "iep_test", "lep_test", "lunch_test",
+                "bOnTrack",
+                grep("onTimeGrad_", cNames, value = T),
+                grep("Pct_Attend",  cNames, value=T),
+                grep("isat_",       cNames, value=T),
+                grep("nwea_",       cNames, value=T),
+                grep("explore_",    cNames, value=T),
+                grep("plan_",       cNames, value=T),
+                grep("psae_",       cNames, value=T),
+                grep("bRace",       cNames, value=T),
+                grep("bLunch",     cNames, value=T),
                 grep("Tract_",    cNames, value=T),
                 grep("MVMS_.+[^se]$", cNames, value=T)) # This gets anything that starts with "MVMS", and doesn't end with "se"
                 # "bHsGrad", 
