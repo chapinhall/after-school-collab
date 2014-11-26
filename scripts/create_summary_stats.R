@@ -57,16 +57,18 @@
 
   # Build a list of descriptive variables
   cNames <- colnames(myData)
-  descVars <- c("bOnTrack", "bGender_Male", "bGender_Female", "bIEP", "iep_test", "lep_test", "lunch_test",
-                grep("Pct_Attend",cNames, value=T),
-                grep("isat_",     cNames, value=T),
-                grep("nwea_",     cNames, value=T),
-                grep("explore_",  cNames, value=T),
-                grep("plan_",     cNames, value=T),
-                grep("psae_",     cNames, value=T),
-                grep("bRace",     cNames, value=T),
-                grep("bLunch",    cNames, value=T),
-                grep("Tract_",    cNames, value=T),
+  descVars <- c("bGender_Male", "bGender_Female", "bIEP", "bEll", "iep_test", "lep_test", "lunch_test",
+                "bOnTrack", "promoted_nextyr", "retained_nextyr",
+                grep("onTimeGrad_", cNames, value = T),
+                grep("Pct_Attend",  cNames, value=T),
+                grep("isat_",       cNames, value=T),
+                grep("nwea_",       cNames, value=T),
+                grep("explore_",    cNames, value=T),
+                grep("plan_",       cNames, value=T),
+                grep("psae_",       cNames, value=T),
+                grep("bRace",       cNames, value=T),
+                grep("bLunch",      cNames, value=T),
+                grep("Tract_",      cNames, value=T),
                 grep("MVMS_.+[^se]$", cNames, value=T)) # This gets anything that starts with "MVMS", and doesn't end with "se"
                 # "bHsGrad", 
 
@@ -200,7 +202,7 @@
         
         # Calculate characteristics of peers, excluding focal youth
           peerStats_bySch <- runStats(data = myPeers, vars = v, bySiteVar = "schlid") # Note: omission of all byVar arguments uses all observations
-          colnames(peerStats_bySch)[colnames(peerStats_bySch) == "site"] <- "sch"
+          colnames(peerStats_bySch)[cn(peerStats_bySch) == "site"] <- "sch"
           peerStats_bySch <- peerStats_bySch[!is.na(peerStats_bySch$mean), ]
           try(peerStats_bySch[peerStats_bySch$n == 1, c("var", "sd", "var_mean", "se_mean")] <- 0, silent=T)
             # XXX This is a bit of a stop-gap, since some calculations have zero rows after
@@ -246,7 +248,6 @@
     orgYearCombos <- data.frame(unique(combos[!grepl("Non-", combos$org), c("org", "year")]))
       colnames(orgYearCombos) <- c("org", "year")
     orgCombos <- data.frame(org=unique(orgYearCombos[, c("org")]))
-
     for (f in c("combos", "orgYearCombos", "orgCombos")){
       d <- get(f); rownames(d) <- NULL
       write.csv(d, file = paste0(dataPath, f %&% ".csv"))
