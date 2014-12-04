@@ -17,4 +17,6 @@ myInv <- function(n) {
 }
 system.time(solve(matrix(runif(1000000), nrow = 1000)))
 
-foreach
+foreach (i in 1:100){
+  
+}
