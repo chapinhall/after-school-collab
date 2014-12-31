@@ -1,0 +1,31 @@
+\documentclass[12pt]{article}
+\usepackage[margin=1in]{geometry}
+\usepackage[T1]{fontenc}
+\usepackage{helvet}
+\renewcommand{\familydefault}{\sfdefault}
+
+\begin{document}
+<<title, echo=FALSE>>=
+  myTitle <- paste0("Report for ", o)
+@
+\title{\Sexpr{myTitle}}
+\date{}
+\maketitle
+
+<<sites, echo=F>>=
+mySites <- paste(subData$site, collapse = ", ")
+@
+
+Organization \Sexpr{o}'s sites are: \Sexpr{mySites}.
+
+<<setup, echo=FALSE >>=
+  opts_chunk$set(fig.path = "test-reports/")
+@
+
+<<makeFilename, echo = F>>=
+  
+@
+\graphicspath{{./test-reports/}}
+\includegraphics{site_graph.png}
+
+\end{document}

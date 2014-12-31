@@ -50,8 +50,8 @@
   ##bluesfill <- c("#005555", "#000077")
   
   myRes <- 600
-  myWidth  <- 4.67 # Using inches (for ggsave). This is 2800 in pixels.
-  myHeight <- 3.50 # Using inches (for ggsave). This is 2100 in pixels.
+  myWidth  <- 4.67 # Using inches (for ggsave). This is 2800 in pixels. (600 pixels to an inch)
+  myHeight <- 3.50 # Using inches (for ggsave). This is 2100 in pixels. (600 pixels to an inch)
   
 #-----------------------
 ## Load and Prepare Data
@@ -69,11 +69,12 @@
     load(p0(dataPath, "descStats", scramInd, ".Rda"))
     
   ## Small data change - move designation of "all school based peers" to the name of the "org"
-    descStats$org[descStats$site=='All Sch-Based Peers']  <- paste(descStats$org[descStats$site=='All Sch-Based Peers'], 'Sch-Based Peers')
+    descStats$org[ descStats$site=='All Sch-Based Peers'] <- paste(descStats$org[descStats$site=='All Sch-Based Peers'], 'Sch-Based Peers')
     descStats$site[descStats$site=='All Sch-Based Peers'] <- 'All'
     descStats$site[descStats$site==''] <- 'Unknown'
   
   ## Simplify Site Names
+  # XXX Move this to general data prep
     descStats$site <- gsub(" School Of Excellence", "", descStats$site)
     descStats$site <- gsub(" Elementary", "", descStats$site)
     descStats$site <- gsub(" Academy", "", descStats$site)
@@ -81,11 +82,11 @@
     
   ## Prepare factor orders to go from "non-org", "sch-based peers", "own value"
     for (v in c("org", "site")){
-      vVals <- unique(descStats[, v])
-      nonVals  <- grep("Non-",  vVals, value = T)
-      peerVals <- grep("Peers", vVals, value = T)
-      valVals  <- vVals[!(vVals %in% c(nonVals, peerVals))]
-      descStats[, v] <- factor(descStats[, v], levels = c(nonVals, peerVals, valVals))
+      vals.u <- unique(descStats[, v])
+      nonVals  <- grep("Non-",  vals.u, value = T)
+      peerVals <- grep("Peers", vals.u, value = T)
+      ownVals  <- vals.u[!(vals.u %in% c(nonVals, peerVals))]
+      descStats[, v] <- factor(descStats[, v], levels = c(nonVals, peerVals, ownVals))
     }
   
 #---------------------------------------#
@@ -97,51 +98,71 @@
 ##### Define general plotting function  ##########
   
   makePlot <- function(
-                orgList = allOrgs, siteList = c("All"), progList = c("All"), gradeList = c("All"), yearList = c('All'),
-                compareAcross = "Benchmarks", varList, varNames = "",                                    
+                orgList = allOrgs, siteList = c("All"), progList = c("All"), yearList = c('All'), gradeList = c("All"), 
+                compareAcross = "Benchmarks", varList, varNames = "",                                 
                 title = '', ylab = '', xlab = '', yscaletype = "percent"
               ){    
-              # compareAcross can take values "Benchmarks", "Orgs", "Sites", "Programs", "Years", "Vars"
+              # compareAcross can take values "Benchmarks", "Orgs", "Sites", "Programs", "Years", "Vars".
+              # XXX in the future, could create a comparison by grade
               # varNames is vector of x-axis labels, in the same order as the variables in varList
-              # to see raw means rather than percents, set yscaletype = "comma"
+              # To see raw means rather than percents, set yscaletype = "comma"
 
     # Print status for auditing purposes
-      print(paste("Graphing orgList =", orgList, "varList =", varList, "for sites", siteList, "for programs", progList,"for years", years, "for grades", gradeList))
+      print(paste("Graphing orgList =", orgList, "varList =", varList, "for sites", siteList, "for programs", progList, "for years", years, "for grades", gradeList))
     
+      # Save calculations of lengths of each list (for easy referencing)
+      for (i in c("org", "site", "prog", "year", "var", "grade")){
+        assign( p0(i, "List.l"), length(get(p0(i, "List"))) )
+      }
+      
     # Check consistency of function call based on all args
       
-      stopifnot((compareAcross != "Years" & length(yearList) == 1) |
-                (compareAcross == "Years" & length(yearList)  > 1))
-      stopifnot((compareAcross != "Vars"  & length(varList)  == 1) |
-                (compareAcross == "Vars"  & length(varList)   > 1))
+      stopifnot((compareAcross != "Years" & yearList.l) == 1) |
+                (compareAcross == "Years" & yearList.l   > 1))
+      stopifnot((compareAcross != "Vars"  & varList.l  == 1) |
+                (compareAcross == "Vars"  & varList.l   > 1))
       
+      # XXX Could convert this to a switch() to be a little more elegant. However, would still need to handle exceptions.
       if (compareAcross == "Years"){
-        stopifnot(length(yearList) > 1, length(orgList) == 1, length(siteList) == 1, length(progList) == 1, siteList == "All" | progList == "All")
+        stopifnot(yearList.l > 1,
+                  all(c(orgList.l, siteList.l, progList.l) == 1),
+                  any(c(siteList, progList) == "All")) # I.e., we're not allowing both site and program to be specified
         myOrgs <- orgList; mySites <- siteList; myProgs <- progList
+        
       } else if (compareAcross == "Vars"){
-        stopifnot(length(varList) > 1,  length(orgList) == 1, length(siteList) == 1, length(progList) == 1, siteList == "All" | progList == "All")
+        stopifnot(varList.l > 1,
+                  all(c(orgList.l, siteList.l, progList.l) == 1),
+                  any(c(siteList, progList) == "All") # I.e., we're not allowing both site and program to be specified
         myOrgs <- orgList; mySites <- siteList; myProgs <- progList
-      } else if (compareAcross == "Orgs") { # orgList[1] != "All" & ... XXX Could simplify this with a switch()
-        stopifnot(length(orgList) > 1)
+        
+      } else if (compareAcross == "Orgs") {
+        stopifnot(orgList.l > 1,
+                  all(c(varList.l, yearList.l) == 1))
         myOrgs <- orgList; mySites <- "All"; myProgs <- "All"
+        
       } else if (compareAcross == "Sites"){
-        stopifnot(length(orgList) == 1, length(siteList) > 1)
+        stopifnot(orgList.l == 1, siteList.l > 1)
         myOrgs <- orgList; mySites <- siteList; myProgs <- "All"
-      } else if (length(progList) > 1) {
+        
+      } else if (compareAcross == "Programs") {
         myOrgs <- orgList; mySites <- "All"; myProgs <- progList
+        
       } else if (compareAcross == "Benchmarks"){
-        if (length(orgList) == 1){
+        stopifnot( all(c(varList.l, yearList.l)==1) )
+        if (orgList.l == 1){
           stopifnot(orgList != "All")
           myOrgs <- grep(paste(orgList, collapse="|"), descStats$org, value = T)
           mySites <- "All"; myProgs <- "All" # Enforcing that this must by site- and program-wide
-        } else if (length(siteList) == 1){
-          stopifnot(length(orgList) != 1, orgList != "All")
+        } else if (siteList.l == 1){
+          stopifnot(orgList.l == 1, orgList != "All", siteList != "All")
           myOrgs <- orgList; myProgs <- "All" # Enforcing (for now) that site must be across all programs (since we're not currently cross-classifying)
-          mySites <- grep(paste(siteList, collapse="|"), descStats$site[descStats$org == orgList], value = T)
-        } else if (length(progList) == 1){
-          stopifnot(orgList[1] != "All", progList != "All")
+          mySites <- grep(paste(siteList, collapse="|"), descStats$site[descStats$org %in% orgList], value = T)
+            # Need this grep to get all of the benchmark values (i.e. non- and peer-) related to the site
+        } else if (progList.l == 1){
+          stopifnot(orgList.l == 1, orgList != "All", progList != "All")
           myOrgs <- orgList; mySites <- "All"
           myProgs <- grep(paste(progList, collapse="|"), descStats$program[descStats$org %in% orgList], value = T)
+            # Need this grep to get all of the benchmark values (i.e. non- and peer-) related to the program
         } else {
           stop("Could not identify the benchmark comparison that was requested")
         }
@@ -149,22 +170,23 @@
         stop("Count not identify the comparison that was requested")
       }
       
-      # Subset to specified orgs, sites, programs, gradeList, years, and variables
-      myData <- descStats[with(descStats, org      %in% myOrgs    &
-                                          site     %in% mySites   &
-                                          program  %in% progList  &
-                                          grade    %in% gradeList &
-                                          year     %in% myYears   &
-                                          variable %in% varList), ]
+    # Subset to specified orgs, sites, programs, gradeList, years, and variables
+      myData <- descStats[with(descStats, org      %in% myOrgs   &
+                                          site     %in% mySites  &
+                                          program  %in% myProgs  &
+                                          year     %in% yearList &
+                                          variable %in% varList  &
+                                          grade    %in% gradeList), ]
   
       myData <- myData[!is.na(myData$mean), ] # Remove obs that are NA for mean
-      myData$site <- factor(as.character(myData$site)) # Resets the levels to only the specified sites
-    
-    if (nrow(myData)==0) stop("Had no rows of data in the specified request")
-    
+      if (nrow(myData)==0) stop("Had no rows of data in the specified request")
+
     # Convert year to numeric for plots over time
       myData$year <- as.numeric(myData$year)
-    
+    # Resets factor levels to only the specified sites and programs
+      myData$site <- factor(as.character(myData$site))       
+      myData$program <- factor(as.character(myData$program))
+      
     # Make sure that graph will display variables from L to R in the order specified in varList
       myData$variable <- factor(myData$variable, levels = varList) 
     
@@ -179,7 +201,7 @@
       }
     
     # Define the fill to match organization
-      if (length(siteList) <= 3 & length(progList <= 3)) {
+      if (siteList.l <= 3 & length(progList <= 3)) {
         if (compareAcross != "Orgs") { 
           useFill <- get(p0(orgList, "fill"))
         } else { 
@@ -187,7 +209,7 @@
         }
       } else {
         useFill <- neutralFill
-        # rainbow(max(length(siteList), length(progList)))
+        # rainbow(max(siteList.l, progList.l))
       }
            
     # Create plot

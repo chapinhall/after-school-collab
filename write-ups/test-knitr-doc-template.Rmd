@@ -1,0 +1,17 @@
+\documentclass{article}
+\usepackage[T1]{fontenc}
+
+\begin{document}
+\title{<<title>>=
+       paste0("Report for ", o)
+       @}
+
+\maketitle
+
+My sites are:
+
+<<sites>>=
+paste0("My sites are: ", paste(subData$site, collapse = ", "))
+@
+
+\end{document}
