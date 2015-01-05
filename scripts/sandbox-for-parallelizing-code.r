@@ -43,6 +43,8 @@ myInv <- function(x) {
     system.time(foreach(1:r) %do% myInv(n))
 
   # from Unix prompt, can get number of processors from unix prompt -- -- cat /proc/cpuinfo | grep ^proc
-    registerDoMC(12)
+    cl <- makeCluster(3)
+    registerDoParallel(3)
+    system.time(x <- foreach(i=1:100) %dopar% sqrt(i))
     system.time(x <- foreach(1:r) %dopar% myInv(n))
-
+  
