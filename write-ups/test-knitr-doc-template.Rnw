@@ -23,9 +23,9 @@ Organization \Sexpr{o}'s sites are: \Sexpr{mySites}.
 @
 
 <<makeFilename, echo = F>>=
-  
+  mySitesFig <- paste0("site_graph_", o, ".png")
 @
 \graphicspath{{./test-reports/}}
-\includegraphics{site_graph.png}
+\includegraphics{\Sexpr{mySitesFig}}
 
 \end{document}

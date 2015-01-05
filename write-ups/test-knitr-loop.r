@@ -13,7 +13,7 @@ for (o in unique(myData$org)){
     ggtitle("% This by Site") + xlab("Site") + ylab("% This") +
     theme(axis.text.x = element_text(angle = 90))
   #myFileName <- paste0("./test-reports/fig_pctThis_", o, ".png")
-  ggsave("./test-reports/site_graph.png")
+  ggsave(paste0("./test-reports/site_graph_", o, ".png"))
   
   knit2pdf("test-knitr-doc-template.Rnw", output = paste0("./test-reports/report_", o, ".tex"))
 }
