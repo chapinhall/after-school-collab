@@ -248,7 +248,7 @@
         myPlot <- ggplot(data = myData, aes(x = year, y = mean, color = fill)) +
                     geom_point() + geom_line() +
                     ggtitle(title) +
-                    scale_y_continuous(lables = ep(yscaletype), name = ylab, breaks = waiver()) +
+                    scale_y_continuous(labels = ep(yscaletype), name = ylab, breaks = waiver()) +
                     scale_x_continuous(name = xlab) +
                     guides(color = guide_legend(title = NULL)) + theme(legend.position = "bottom") +
                     scale_color_manual(values = useFill) +
