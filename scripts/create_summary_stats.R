@@ -245,12 +245,15 @@
     combos$gradefilter <- ifelse(combos$grade!="All" & (combos$site!="All" | combos$program!="All"), 1, 0)
     rownames(combos) <- NULL
 
+    combosXYears <- unique(combos[, !grepl("year|id", colnames(combos))])
+
     orgYearCombos <- data.frame(unique(combos[!grepl("Non-", combos$org), c("org", "year")]))
       colnames(orgYearCombos) <- c("org", "year")
+
     orgCombos <- data.frame(org=unique(orgYearCombos[, c("org")]))
-    for (f in c("combos", "orgYearCombos", "orgCombos")){
+
+    for (f in c("combos", "combosXYears", "orgYearCombos", "orgCombos")){
       d <- get(f); rownames(d) <- NULL
       write.csv(d, file = paste0(dataPath, f %&% ".csv"))
     }
-    
-    
+  
