@@ -1,4 +1,4 @@
-\documentclass{article}\usepackage[]{graphicx}\usepackage[]{color}
+\documentclass[12pt]{article}\usepackage[]{graphicx}\usepackage[]{color}
 %% maxwidth is the original width if it is less than linewidth
 %% otherwise use linewidth (to make sure the graphics do not exceed the margin)
 \makeatletter
@@ -48,60 +48,25 @@
 \newenvironment{knitrout}{}{} % an empty environment to be redefined in TeX
 
 \usepackage{alltt}
+\usepackage[margin=1in]{geometry}
 \usepackage[T1]{fontenc}
+\usepackage{helvet}
+\renewcommand{\familydefault}{\sfdefault}
 \IfFileExists{upquote.sty}{\usepackage{upquote}}{}
 \begin{document}
-\title{Sample Report}
 
-% Can insert loops into http://stackoverflow.com/questions/15396755/using-loops-with-knitr-to-produce-multiple-pdf-reports-need-a-little-help-to
-% Check out this nice little intro to Sweave: http://beckmw.files.wordpress.com/2014/02/sweave_intro1.pdf
-
-Here is a code chunk.
-
-\begin{knitrout}
-\definecolor{shadecolor}{rgb}{0.969, 0.969, 0.969}\color{fgcolor}\begin{kframe}
-\begin{alltt}
-\hlnum{1}\hlopt{+}\hlnum{1}
-\end{alltt}
-\begin{verbatim}
-## [1] 2
-\end{verbatim}
-\begin{alltt}
-\hlstd{letters}
-\end{alltt}
-\begin{verbatim}
-##  [1] "a" "b" "c" "d" "e" "f" "g" "h" "i" "j" "k" "l" "m" "n" "o" "p" "q"
-## [18] "r" "s" "t" "u" "v" "w" "x" "y" "z"
-\end{verbatim}
-\begin{alltt}
-\hlkwd{chartr}\hlstd{(}\hlstr{'xie'}\hlstd{,} \hlstr{'XIE'}\hlstd{,} \hlkwd{c}\hlstd{(}\hlstr{'xie yihui'}\hlstd{,} \hlstr{'Yihui Xie'}\hlstd{))}
-\end{alltt}
-\begin{verbatim}
-## [1] "XIE yIhuI" "YIhuI XIE"
-\end{verbatim}
-\begin{alltt}
-\hlkwd{par}\hlstd{(}\hlkwc{mar}\hlstd{=}\hlkwd{c}\hlstd{(}\hlnum{4}\hlstd{,} \hlnum{4}\hlstd{,} \hlnum{.2}\hlstd{,} \hlnum{.2}\hlstd{));} \hlkwd{plot}\hlstd{(}\hlkwd{rnorm}\hlstd{(}\hlnum{100}\hlstd{))}
-\end{alltt}
-\end{kframe}
-\includegraphics[width=\maxwidth]{figure/foo} 
-
-\end{knitrout}
-
-Here is some code that gets evaluated but not shown
+\title{Report for Neptune}
+\date{}
+\maketitle
 
 
-\begin{knitrout}
-\definecolor{shadecolor}{rgb}{0.969, 0.969, 0.969}\color{fgcolor}\begin{kframe}
-\begin{alltt}
-\hlkwd{mean}\hlstd{(d}\hlopt{$}\hlstd{y);} \hlkwd{var}\hlstd{(d}\hlopt{$}\hlstd{y)}
-\end{alltt}
-\begin{verbatim}
-## [1] 0.5813
-## [1] 0.1111
-\end{verbatim}
-\end{kframe}
-\end{knitrout}
 
-You can also write inline expressions, e.g. $\pi=3.1416$, and \ensuremath{1.5987\times 10^{8}} is a big number.
+Organization Neptune's sites are: Luxembourg, Latvia, India, Libya, Tajikistan, Australia, Turks and Caicos Islands, Reunion Island, Virgin Islands (British), Congo, Republic of(Brazzaville), Marshall Islands, Papua New Guinea, Malawi, Brazil, Turkmenistan, Antigua and Barbuda, Djibouti, Senegal, United Arab Emirates, Christmas Island, Syria, Syrian Arab Republic, Lithuania, Canada, Dominica, Taiwan (Republic of China), Armenia, Croatia, Switzerland, Poland, Dominican Republic, Cocos (Keeling) Islands, Austria, Bermuda, Saint Kitts and Nevis, Indonesia, Chile, Niger, Madagascar, Venezuela, Qatar, Italy, Czech Republic.
+
+
+
+
+\graphicspath{{./test-reports/}}
+\includegraphics{site_graph_Neptune.png}
 
 \end{document}

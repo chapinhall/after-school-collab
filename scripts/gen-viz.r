@@ -25,21 +25,26 @@
   useScrambledData <- 0
   runDescGraphs    <- 1
 
-  allOrgs <- c("YMCA", "ASM", "CHaA", "UCAN", "Collab")
-  
-  YMCAfill    <- c("#ED1C24", "#92278F", "#0089D0", "#F47920", "01A490") # hex codes from YMCA standards (http://marketingfrankenstein.weebly.com/uploads/6/9/2/0/6920095/graphic_standards_for_3rd_parties.pdf)
-  ASMfill     <- c("#3F227C", "#A4B635", "#211F21") # purple, lime, and grey - hex codes from ASM website
-  CHaAfill    <- c("#4F91CE", "#78A360", "#FAAF5E") #light blue, green, orange - hex codes from CH+A website
-  UCANfill    <- c("#006854", "#5C3D87", "#CDDA44", "#5A5A5A") #dark teal, purple, lime, gray 
-  Collabfill  <- c("#000053", "#8F162B", "#A0A1A3")
-  OrgvOrgfill <- c("#000053", "#8F162B", "#A0A1A3", "#DA5F45", "#005555", "#000000")
-  # Chapin Colors: navy, maroon, grey, coral, teal, black
-  neutralFill <- c(#3399FF)
+  #----------------#
+  # Specify Colors #
+  #----------------# 
+    # Manual converter to check values is here: http://rgb.to/
 
-  # If graphing more than 3 sites, fill is set to a default rainbow() palette
+    YMCAfill    <- c("#ED1C24", "#92278F", "#0089D0", "#F47920", "#01A490") # hex codes from YMCA standards (http://marketingfrankenstein.weebly.com/uploads/6/9/2/0/6920095/graphic_standards_for_3rd_parties.pdf)
+    ASMfill     <- c("#3F227C", "#A4B635", "#211F21") # purple, lime, and grey - hex codes from ASM website
+    CHaAfill    <- c("#4F91CE", "#78A360", "#FAAF5E") #light blue, green, orange - hex codes from CH+A website
+    UCANfill    <- c("#006854", "#5C3D87", "#CDDA44", "#5A5A5A") #dark teal, purple, lime, gray 
+    Collabfill  <- c("#000053", "#8F162B", "#A0A1A3")
+    OrgvOrgfill <- c("#000053", "#8F162B", "#A0A1A3", "#DA5F45", "#005555", "#000000")
+    # Chapin Colors: navy, maroon, grey, coral, teal, black
+    neutralFill <- c(#3399FF)
   
-  Alphafill  <- c("#ED1C24", "#92278F", "#0089D0", "#F47920", "#01A490") 
-  Betafill <- c("#3F227C", "#A4B635", "#211F21")
+    Alphafill  <- c("#ED1C24", "#92278F", "#0089D0", "#F47920", "#01A490") 
+    Betafill <- c("#3F227C", "#A4B635", "#211F21")
+  
+    # Convert colors to HSV (hue, saturation, value (i.e. intensity))
+      hex2hsv <- function(hex) rgb2hsv(col2rgb(hex))
+      # hex2hsv("#000000"); hex2hsv("#FFFFFF")
 
   # Other old fills we could use
   ##myfill1 <- c("#CC3300", "#660000") #orange/red and dark red ... NSM - these are good YMCA colors
@@ -50,8 +55,8 @@
   ##bluesfill <- c("#005555", "#000077")
   
   myRes <- 600
-  myWidth  <- 4.67 # Using inches (for ggsave). This is 2800 in pixels.
-  myHeight <- 3.50 # Using inches (for ggsave). This is 2100 in pixels.
+  myWidth  <- 4.67 # Using inches (for ggsave). This is 2800 in pixels. (600 pixels to an inch)
+  myHeight <- 3.50 # Using inches (for ggsave). This is 2100 in pixels. (600 pixels to an inch)
   
 #-----------------------
 ## Load and Prepare Data
@@ -59,21 +64,29 @@
 
   ## Load data
     if (useScrambledData==1) {
-        myOutDir <- paste0(myDir,"demos/") 
+        myOutDir <- p0(myDir, "demos/") 
         scramInd <- "_DEMO"
     } else {
-        myOutDir <- paste0(myDir,"output/")
+        myOutDir <- p0(myDir, "output/")
         scramInd <- ""
     }
   
     load(p0(dataPath, "descStats", scramInd, ".Rda"))
+    #allOrgs <- c("YMCA", "ASM", "CHaA", "UCAN", "Collab")
+    allOrgs <- unique(descStats$org)
+
+    # Convert colors for all organizations
+      for (o in c(allOrgs, "Collab", "OrgvOrg")){
+        assign(p0(o, "fill_hsv"), sapply(get(p0(o, "fill")), hex2hsv))
+      }  
     
   ## Small data change - move designation of "all school based peers" to the name of the "org"
-    descStats$org[descStats$site=='All Sch-Based Peers']  <- paste(descStats$org[descStats$site=='All Sch-Based Peers'], 'Sch-Based Peers')
-    descStats$site[descStats$site=='All Sch-Based Peers'] <- 'All'
-    descStats$site[descStats$site==''] <- 'Unknown'
+    descStats$org[ descStats$site=="All Sch-Based Peers"] <- paste(descStats$org[descStats$site=="All Sch-Based Peers"], "Sch-Based Peers")
+    descStats$site[descStats$site=="All Sch-Based Peers"] <- "All"
+    descStats$site[descStats$site==""] <- "Unknown"
   
   ## Simplify Site Names
+  # XXX Move this to general data prep
     descStats$site <- gsub(" School Of Excellence", "", descStats$site)
     descStats$site <- gsub(" Elementary", "", descStats$site)
     descStats$site <- gsub(" Academy", "", descStats$site)
@@ -81,11 +94,11 @@
     
   ## Prepare factor orders to go from "non-org", "sch-based peers", "own value"
     for (v in c("org", "site")){
-      vVals <- unique(descStats[, v])
-      nonVals  <- grep("Non-",  vVals, value = T)
-      peerVals <- grep("Peers", vVals, value = T)
-      valVals  <- vVals[!(vVals %in% c(nonVals, peerVals))]
-      descStats[, v] <- factor(descStats[, v], levels = c(nonVals, peerVals, valVals))
+      vals.u <- unique(descStats[, v])
+      nonVals  <- grep("Non-",  vals.u, value = T)
+      peerVals <- grep("Peers", vals.u, value = T)
+      ownVals  <- vals.u[!(vals.u %in% c(nonVals, peerVals))]
+      descStats[, v] <- factor(descStats[, v], levels = c(nonVals, peerVals, ownVals))
     }
   
 #---------------------------------------#
@@ -97,51 +110,71 @@
 ##### Define general plotting function  ##########
   
   makePlot <- function(
-                orgList = allOrgs, siteList = c("All"), progList = c("All"), gradeList = c("All"), yearList = c('All'),
-                compareAcross = "Benchmarks", varList, varNames = "",                                    
-                title = '', ylab = '', xlab = '', yscaletype = "percent"
+                orgList = allOrgs, siteList = c("All"), progList = c("All"), yearList = c("All"), gradeList = c("All"), 
+                compareAcross = "Benchmarks", varList, varNames = "",
+                outName = "", title = "", ylab = "", xlab = "", yscaletype = "percent"
               ){    
-              # compareAcross can take values "Benchmarks", "Orgs", "Sites", "Programs", "Years", "Vars"
-              # varNames is vector of x-axis labels, in the same order as the variables in varList
-              # to see raw means rather than percents, set yscaletype = "comma"
+              # compareAcross can take values "Benchmarks", "Orgs", "Sites", "Programs", "Years", "Vars".
+              # XXX in the future, could create a comparison by grade
+              # varNames is a vector of x-axis labels, in the same order as the variables in varList
+              # To see raw means rather than percents, set yscaletype = "comma"
 
     # Print status for auditing purposes
-      print(paste("Graphing orgList =", orgList, "varList =", varList, "for sites", siteList, "for programs", progList,"for years", years, "for grades", gradeList))
-    
+      pc <- function(x) paste(x, collapse = ", ")
+      print(paste("Graphing orgList =", pc(orgList), 
+                  "for varList ",  pc(varList),
+                  "for sites ",    pc(siteList),
+                  "for programs ", pc(progList),
+                  "for years ",    pc(years),
+                  "for grades ",   pc(gradeList)))
+      
     # Check consistency of function call based on all args
       
-      stopifnot((compareAcross != "Years" & length(yearList) == 1) |
-                (compareAcross == "Years" & length(yearList)  > 1))
-      stopifnot((compareAcross != "Vars"  & length(varList)  == 1) |
-                (compareAcross == "Vars"  & length(varList)   > 1))
-      
+      # XXX Could convert this to a switch() to be a little more elegant. However, would still need to handle exceptions.
       if (compareAcross == "Years"){
-        stopifnot(length(yearList) > 1, length(orgList) == 1, length(siteList) == 1, length(progList) == 1, siteList == "All" | progList == "All")
+        stopifnot(length(yearList) > 1,
+                  all(c(length(orgList), length(siteList), length(progList)) == 1),
+                  any(c(siteList, progList) == "All")) # i.e., we're not allowing both site and program to be specified
         myOrgs <- orgList; mySites <- siteList; myProgs <- progList
+        
       } else if (compareAcross == "Vars"){
-        stopifnot(length(varList) > 1,  length(orgList) == 1, length(siteList) == 1, length(progList) == 1, siteList == "All" | progList == "All")
+        stopifnot(length(varList) > 1,
+                  all(c(length(orgList), length(siteList), length(progList)) == 1),
+                  any(c(siteList, progList) == "All") # i.e., we're not allowing both site and program to be specified
         myOrgs <- orgList; mySites <- siteList; myProgs <- progList
-      } else if (compareAcross == "Orgs") { # orgList[1] != "All" & ... XXX Could simplify this with a switch()
-        stopifnot(length(orgList) > 1)
+        
+      } else if (compareAcross == "Orgs") {
+        stopifnot(length(orgList) > 1,
+                  all(c(length(varList), length(yearList)) == 1))
         myOrgs <- orgList; mySites <- "All"; myProgs <- "All"
+        
       } else if (compareAcross == "Sites"){
         stopifnot(length(orgList) == 1, length(siteList) > 1)
         myOrgs <- orgList; mySites <- siteList; myProgs <- "All"
-      } else if (length(progList) > 1) {
+        
+      } else if (compareAcross == "Programs") {
         myOrgs <- orgList; mySites <- "All"; myProgs <- progList
+        
       } else if (compareAcross == "Benchmarks"){
-        if (length(orgList) == 1){
+        stopifnot( all(c(length(varList), length(yearList))==1) )
+        if (length(orgList) == 1 & all(siteList == "All") & all(programList == "All")){
           stopifnot(orgList != "All")
-          myOrgs <- grep(paste(orgList, collapse="|"), descStats$org, value = T)
           mySites <- "All"; myProgs <- "All" # Enforcing that this must by site- and program-wide
+          myOrgs <- grep(paste(orgList, collapse="|"), descStats$org, value = T)
+            # Need this grep to get all of the benchmark values (i.e. non- and peer-) related to the site
+          
         } else if (length(siteList) == 1){
-          stopifnot(length(orgList) != 1, orgList != "All")
+          stopifnot(length(orgList) == 1, orgList != "All", siteList != "All")
           myOrgs <- orgList; myProgs <- "All" # Enforcing (for now) that site must be across all programs (since we're not currently cross-classifying)
-          mySites <- grep(paste(siteList, collapse="|"), descStats$site[descStats$org == orgList], value = T)
+          mySites <- grep(paste(siteList, collapse="|"), descStats$site[descStats$org %in% orgList], value = T)
+            # Need this grep to get all of the benchmark values (i.e. non- and peer-) related to the site
+          
         } else if (length(progList) == 1){
-          stopifnot(orgList[1] != "All", progList != "All")
-          myOrgs <- orgList; mySites <- "All"
+          stopifnot(length(orgList) == 1, orgList != "All", progList != "All")
+          myOrgs <- orgList; mySites <- "All" # Enforcing (for now) that site must be across all sites (since we're not currently cross-classifying)
           myProgs <- grep(paste(progList, collapse="|"), descStats$program[descStats$org %in% orgList], value = T)
+            # Need this grep to get all of the benchmark values (i.e. non- and peer-) related to the program
+          
         } else {
           stop("Could not identify the benchmark comparison that was requested")
         }
@@ -149,22 +182,23 @@
         stop("Count not identify the comparison that was requested")
       }
       
-      # Subset to specified orgs, sites, programs, gradeList, years, and variables
-      myData <- descStats[with(descStats, org      %in% myOrgs    &
-                                          site     %in% mySites   &
-                                          program  %in% progList  &
-                                          grade    %in% gradeList &
-                                          year     %in% myYears   &
-                                          variable %in% varList), ]
+    # Subset to specified orgs, sites, programs, gradeList, years, and variables
+      myData <- descStats[with(descStats, org      %in% myOrgs   &
+                                          site     %in% mySites  &
+                                          program  %in% myProgs  &
+                                          year     %in% yearList &
+                                          variable %in% varList  &
+                                          grade    %in% gradeList), ]
   
       myData <- myData[!is.na(myData$mean), ] # Remove obs that are NA for mean
-      myData$site <- factor(as.character(myData$site)) # Resets the levels to only the specified sites
-    
-    if (nrow(myData)==0) stop("Had no rows of data in the specified request")
-    
+      if (nrow(myData)==0) stop("Had no rows of data in the specified request")
+
     # Convert year to numeric for plots over time
       myData$year <- as.numeric(myData$year)
-    
+    # Resets factor levels to only the specified sites and programs
+      myData$site    <- factor(as.character(myData$site))       
+      myData$program <- factor(as.character(myData$program))
+      
     # Make sure that graph will display variables from L to R in the order specified in varList
       myData$variable <- factor(myData$variable, levels = varList) 
     
@@ -176,75 +210,92 @@
         myData$fill <- myData$program
       } else if (compareAcross == "Orgs") {
         myData$fill <- myData$org
+      } else if (compareAcross == "Benchmarks" & ) {
+        
       }
+      # compareAcross can take values "Benchmarks", "Years", "Vars".
     
     # Define the fill to match organization
-      if (length(siteList) <= 3 & length(progList <= 3)) {
-        if (compareAcross != "Orgs") { 
-          useFill <- get(p0(orgList, "fill"))
-        } else { 
-          useFill <- OrgvOrgfill
-        }
+      if (compareAcross == "Orgs" | length(orgList) > 1 ){
+        myPalette <- OrgvOrgfill
       } else {
-        useFill <- neutralFill
-        # rainbow(max(length(siteList), length(progList)))
+        myPalette <- get(p0(myOrgs, "fill"))
+      }
+    
+      nColors <- length(unique(myData$fill))
+      if (nColors <= length(myPalette)) {
+        useFill <- myPalette
+      } else { 
+        # Create a sequence of colors between the first two colors specified
+        myHsvs <- rgb2hsv(col2rgb(myPalette[1:2]))
+        useFill <- hsv(seq(myHsvs["h", 1], myHsvs["h", 2], length.out = nColors),
+                       seq(myHsvs["s", 1], myHsvs["s", 2], length.out = nColors),
+                       seq(myHsvs["v", 1], myHsvs["v", 2], length.out = nColors))
       }
            
     # Create plot
     
       if (compareAcross != "Years") {
-        plot <- ggplot(data = myData, aes(x = variable, y = mean, fill = fill)) + 
-                  geom_bar(stat = 'identity', position = 'dodge', width = 0.7) +
-                  ggtitle(title) + 
-                  scale_y_continuous(labels = ep(yscaletype), name = ylab, breaks = waiver()) +
-                  scale_x_discrete(name = xlab, labels = varNames) +
-                  guides(fill = guide_legend(title = NULL)) + theme(legend.position = 'bottom') +
-                  scale_fill_manual(values = useFill) +
-                  theme(axis.title.y = element_text(size = 8))
+        myPlot <- ggplot(data = myData, aes(x = variable, y = mean, fill = fill)) + 
+                    geom_bar(stat = "identity", position = "dodge", width = 0.7) +
+                    ggtitle(title) + 
+                    scale_y_continuous(labels = ep(yscaletype), name = ylab, breaks = waiver()) +
+                    scale_x_discrete(name = xlab, labels = varNames) +
+                    guides(fill = guide_legend(title = NULL)) + theme(legend.position = "bottom") +
+                    scale_fill_manual(values = useFill) +
+                    theme(axis.title.y = element_text(size = 8))
       } else { # Generate plots comparing multiple years
-        plot <- ggplot(data = myData, aes(x = year, y = mean, color = fill)) +
-                geom_point() + geom_line() +
-                scale_color_manual(values = useFill) +
-                ggtitle(title) +
-                scale_y_continuous(lables = ep(yscaletype), name = ylab, breaks = waiver()) +
-                scale_x_continuous(name = xlab) +
-                guides(color = guide_legend(title = NULL)) + theme(legend.position = 'bottom') +
-                theme(axis.title.y = element_text(size = 8))
+        myPlot <- ggplot(data = myData, aes(x = year, y = mean, color = fill)) +
+                    geom_point() + geom_line() +
+                    ggtitle(title) +
+                    scale_y_continuous(labels = ep(yscaletype), name = ylab, breaks = waiver()) +
+                    scale_x_continuous(name = xlab) +
+                    guides(color = guide_legend(title = NULL)) + theme(legend.position = "bottom") +
+                    scale_color_manual(values = useFill) +
+                    theme(axis.title.y = element_text(size = 8))
       }
-            
-    # Output plot to saved file
     
-      # XXX Come back and rearrange this. There should be a way to more simply assign prefix (e.g. "CpsvOrg_" or "SitevSite_")
-      #     and the graph location in the conditionals, and do the dir.create() and ggsave() outside the conditionals.
-      # XXX Should be a more elegant way to determine the conditional. Consider creating a categorical argument, e.g.
-      #     compareLvl = "x", where x \in {org, site, program, year}, and a check is made to make sure that 
-      #     the levels besides the compareLvl are properly specified. E.g., if compareLvl = site, then a single org must be
-      #     specified, and program must be "All" (since we currently do not calculate cross-classifications of program-by-site
-      #     enrollments), and year is a single value that is not "All".
-      if (is.na(orgList[2])) { # I.e. Output for graphs within one organization
-          if (is.na(siteList[2]) & is.na(progList[2])) { # I.e. if it's for all sites and all programs
-            myGraphOut <- p0(myOutDir, orgList[1], "/", siteList[1], "/")
-            dir.create(myGraphOut, showWarnings = FALSE)
-            ggsave(filename = p0(myGraphOut, "CpsvOrg_", varList[1], timeind, ".png"), plot = plot, dpi = myRes, width = myWidth, height = myHeight)
-          } else if (is.na(siteList[2])){ # I.e. if it's across sites
-            myGraphOut <- p0(myOutDir, orgList[1], "/SitevSite/")
-            dir.create(myGraphOut, showWarnings = FALSE)
-            ggsave(filename = p0(myGraphOut, "SitevSite_",varList[1],timeind,".png"), plot = plot, dpi = myRes, width = myWidth, height = myHeight)           
-          } else if (is.na(progList[2])){
-            myGraphOut <- p0(myOutDir,orgList[1],"/ProgramvProgram/")
-            dir.create(myGraphOut, showWarnings = FALSE)
-            ggsave(filename = p0(myGraphOut, "ProgramvProgram_", varList[1], timeind, ".png"), plot = plot, dpi = myRes, width = myWidth, height = myHeight) 
-          }
-      } else { # Output for graphs comparing organizations
-        myGraphOut <- p0(myOutDir, "OrgvOrg/")
-        dir.create(myGraphOut, showWarnings = FALSE)
-        ggsave(filename = p0(myGraphOut, varList[1], timeind, ".png"), plot = plot, dpi = myRes, width = myWidth, height = myHeight) 
+    #---------------#
+    # Save the plot #
+    #---------------#
+      
+      yearTag <- ifelse(compareAcross == "Years", "", p0("_year", yearList)) # yearList should be "All" or an individual value
+    
+      # Where the graph was at the single organizational aggregate level
+      if ((compareAcross %in% c("Sites", "Programs")) | 
+          (compareAcross %in% c("Years", "Vars", "Benchmarks") & all(c(siteList, programList) == "All"))){
+        if (myOrgs == "All" | length(orgList) != 1) stop("In process of saving, the specified organization was not consistent with the saving rules (indv org level)")
+        saveFileName <- p0("Across", compareAcross, "_for_", myOrgs, "_Aggregate", yearTag, ".png")
+        myGraphOut <- p0(myOutDir, myOrgs, "/")
+        
+      # Where the graph was at the org-by-site level
+      } else if (mySites != "All" & length(mySites == 1))) {
+        if any(myOrgs != "All", myPrograms != "All") stop("In process of saving, the specified organization was not consistent with the saving rules (site level)")
+        saveFileName <- p0("Across", compareAcross, "_", outName, "_for_", mySites, yearTag, ".png")
+        myGraphOut <- p0(myOutDir, myOrgs, "/Sites/", mySites, "/")
+      
+      # Where the graph was at the org-by-program level
+      } else if (myPrograms != "All") & length(myPrograms) == 1) {
+        if any(myOrgs != "All", mySites != "All") stop("In process of saving, the specified organization was not consistent with the saving rules (program level)")
+        saveFileName <- p0("Across", compareAcross, "_", outName, "_for_", myPrograms, yearTag, ".png")
+        myGraphOut <- p0(myOutDir, myOrgs, "/Programs/", myPrograms, "/")
+        
+      # Where the graph was at the cross-org level
+      } else if (compareAcross == "Orgs"){
+        if (length(orgList) == 1) stop("In process of saving, the specified organization was not consistent with the saving rules (cross org)")
+        saveFileName <- p0("AcrossOrgs_", outName, yearTag, ".png")
+        myGraphOut <- myOutDir
+      } else {
+        stop("Encountered unknown condition for saving the plot")
       }
-                  
+      dir.create(myGraphOut, showWarnings = FALSE)
+      ggsave(filename = p0(myGraphOut, saveFileName), plot = myPlot, dpi = myRes, width = myWidth, height = myHeight)        
+    
       # Return plot - this displays the plot once the function has run
-        return(plot)
+      return(myPlot)
 
-  } # End of the MakePlot() function
+  } # End of the makePlot() function
+
 
   # Samples of function in action - this code can be removed eventually
   makePlot("bLunch_FR", orgList = "CHaA", title = "% Free/Reduced Price Lunch", ylab = 'Proportion on Free/Reduced Price Lunch', years = '2013')  
@@ -359,18 +410,3 @@ if (1==runDescGraphs) {
   
 }
   
-# Talking through how a categorical "compare across" argument would go:
-  # values are in {"orgs", "sites", "programs", "year", "benchmarks" }
-  # based on selection, there's a check for aux info that is submitted:
-  #   - if "orgs": it ignores any site, program and benchmark arguments, and wants an individual year
-  #   - if "sites":    it requires a single org, wants an individual year, and ignores program
-  #   - if "programs": it requires a single org, wants an individual year, and ignores site
-  #   - if "years":    it requires a single org, requires either site or program to be "All", and ignores
-  #   - if "benchmarks": it requires a single org, and site or program can be set to "All" or specified, but both can't be specified
-  #   - if "vars": ...
-
-# Next steps: 
-    # streamline data generation to make one script for demo data and one for non-demo
-    # think about what kind of site v site, org v org, and year v year plots should be standard and code those
-    # add new variables (NWEA test scores, IEP/ELL status, neighborhood characteristics, etc)
-
