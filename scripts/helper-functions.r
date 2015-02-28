@@ -5,7 +5,9 @@ comment <- function(...){}
 ep      <- function(x){ eval(parse(text = x))}
 f.to.c <- function(f){ return(levels(f)[f]) }
 f.to.n <- function(f){ return(as.numeric(levels(f)[f])) }
+plusPaste <- function(...){ paste(..., collapse = "+") }
 cn <- function(x) colnames(x)
+grepv <- function(pat, text) grep(pat, text, value = T)
 compCols <- function(a, b) {
    cna <- cn(a); cnb <- cn(b)
    u <- unique(c(cna, cnb))
@@ -25,4 +27,28 @@ earth.dist <- function (long1, lat1, long2, lat2) {
   R <- 6378.145
   d <- R * c
   return(d)
+}
+sigStarsBSe <- function(b, se){
+ p <- 2*(1 - pnorm(abs(b/se)))
+ return(ifelse(p < 0.01, "***", 
+          ifelse(p < 0.05, "**", 
+            ifelse(p < 0.10, "*", ""))))
+}
+sigStarsP <- function(p){
+ return(ifelse(p < 0.01, "***", 
+          ifelse(p < 0.05, "**", 
+            ifelse(p < 0.10, "*", ""))))
+}
+extractLmStats <- function(myReg){
+  b <- as.data.frame(coef(myReg))
+  b <- b[, c("Estimate", "Std. Error")] # Subset to only what we need. Lm and Lmer differ in whether they have p-values, so dumping extra columns allows for parallel handling
+  b$x  <- rownames(b)
+  b$p <- 2*(1 - pnorm(abs(b[, "Estimate"]/b[, "Std. Error"])))
+  b$sigStars <- sigStarsP(b$p)
+
+  fitStats <- data.frame(x = c("AdjR2", "N", "df"),
+                         Estimate = c(NA, length(myReg$residuals), NA)) # myReg$adj.r.squared, ..., myReg$df[2])
+  fitStats[, cn(b)[!(cn(b) %in% c("x", "Estimate"))]] <- NA
+
+  b <- rbind(b, fitStats)
 }
