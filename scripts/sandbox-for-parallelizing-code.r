@@ -7,41 +7,85 @@
 # For reference
 # http://www.r-bloggers.com/parallel-r-loops-for-windows-and-linux/
 
-library(foreach)
-library(doParallel)
-library(doMC)
+#--------------
+# Set things up
+#--------------
 
-myInv <- function(n) {
-    m <- matrix(runif(n^2), nrow = n)
+# Set environment
+  rm(list = ls())
+  # setwd()
+
+# Load Libraries
+  library(foreach)
+  library(doParallel)
+  library(pastecs)
+  #library(doMC)
+
+# Set run sizes and functions
+  R <- 5000
+  n <- 10000
+  e <- rnorm(n)
+  x <- runif(n)  
+  y <- x + e
+  df <- data.frame(y, x)
+
+  myInv <- function(nRows) {
+    m <- matrix(runif(nRows^2), nrow = nRows)
     return(solve(m))
-}
-system.time(for (i in 1:100) myInv(1e4))
+  }
+  myInv(20)
 
-#---
-# Time a loop
-#---
+  getBeta <- function(d){
+    reg <- lm(y ~ x, d)
+    return(coef(reg)[2])
+  }
+  getBeta(df)
+  bootSample <- function(d){
+    n <- nrow(d)
+    d[sample(1:n, n, replace = T),]
+  }
+  oneBootRep <- function(d){
+    getBeta(bootSample(d))
+  }
+  oneBootDesc <- function(d){
+    library(pastecs)
+    stat.desc(bootSample(d))
+  }
+
+  
+#---------------------
+# Time various methods
+#---------------------
+
+# Loop
+  boots <- NULL
+  desc <- matrix(rep(0, times = ncol(df)*nrow(stat.desc(df))), nrow = nrow(stat.desc(df)))
   system.time({
-    for (i in 1:r){
-      myInv(n)  
+    for (i in 1:R) {
+      bootFor <- rbind(boots, cbind(i, oneBootRep(df)))
+    }
+  })
+  system.time({
+    for (i in 1:R) {
+      descFor <- rbind(desc, cbind(i, oneBootDesc(df)))
     }
   })
 
-#---
-# Time an apply
-#---
-  system.time(sapply(1:r, function(x) myInv(n)))
+# Apply
+  system.time(bootApply <- sapply(1:R, function(x) cbind(x, oneBootRep(df) )))
+  system.time(descApply <- sapply(1:R, function(x) cbind(x, oneBootDesc(df))))
 
-#---
-# Time the doParallel code
-#---
-
-  # First, try the code in serial
-    system.time(foreach(1:r) %do% myInv(n))
+# doParallel 
+  # in serial
+    system.time(bootSerial <- foreach(1:R) %do% oneBootRep(df))
+    system.time(descSerial <- foreach(1:R) %do% oneBootDesc(df))
 
   # from Unix prompt, can get number of processors from unix prompt -- -- cat /proc/cpuinfo | grep ^proc
-    cl <- makeCluster(3)
-    registerDoParallel(3)
-    system.time(x <- foreach(i=1:100) %dopar% sqrt(i))
-    system.time(x <- foreach(1:r) %dopar% myInv(n))
+    #cl <- makeCluster(3)
+    #registerDoParallel(cl)
+    registerDoParallel(cores = 4)
+    getDoParName()
+    getDoParWorkers()
+    system.time(bootParallel <- foreach(1:R, .combine = rbind) %dopar% oneBootRep(df))
+    system.time(descParallel <- foreach(1:R, .combine = rbind) %dopar% oneBootDesc(df))
   
->>>>>>> 08d99fe850281d64510bad88da2eca1042d829f0
