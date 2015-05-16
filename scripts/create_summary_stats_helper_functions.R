@@ -27,6 +27,19 @@
 #-----------------------------------------------------------------------------------------
 
   # byOrgVar=""; byProgramVar=""; bySiteVar=""; byGradeVar=""; byYearVar=""; byOrgVar = "Collab"; byYearVar = "year"
+  # XXX Could users just specify variable names that define the "by", rather than filling in each slot?
+  #   We actually do want some slots specifically indicated, e.g. different variables that distinguish org.
+  #   In practice, what we want to generalize is the extra cut, beyond org/site/prog. That would be grade or dose, or region.
+  #   Or do we want more than one custom slice, e.g. org by region by dosage category?
+  #   Perhaps we could do multiple unspecified slices, but carry all information around.
+  #     E.g., byList <- c("ASM", "Region", "Dose"), which produces 6 columns: Slice#Var, Slice#Val, for # \in {1, 2, 3}
+  #     That could be interpretable by the peer calculations, which could subset and fetch based on knowing the variables.
+  #     The output tables would have to change, where things wouldn't necessarily be aligned to Org, Site, and Program, but
+  #     rather slice 1, slice 2, etc, where the slices are e.g. "Enrollment: YMCA", "Site: Sage", "Dosage: 0-100 hours".
+  #     To get those labels, need to map variable names and values into alias. One tricky example is mapping {"bYmca", 1}
+  #     into "YMCA" and "Non-YMCA". Could have a post-processing section which addresses this by looking through a subset
+  #     of classifications, like whether the slice variable fits within a given list, e.g. organization, 
+  #     That process could deliver fields like "Slide#Label", and it's those labels that go into the "Combo" output.
   fnCount <- function(x) sum(!is.na(x))
   runStats <- function(data = calcData, vars = descVars, byOrgVar="", byProgramVar="", bySiteVar="", bySchlVar="", byGradeVar="", byYearVar=""){
 
@@ -50,7 +63,7 @@
       byVars.str <- paste(bys, collapse = ",")
       useDt <- data.table(useData, key = byVars.str)
       
-      # XXX Could this be simplified with ddply(), which allows both subsetting and multiple calculations?
+      # XXX Could simplify with stat.desc as a replacement of the one-off functions
       # XXX Note that the pastecs package has the function stat.desc which calculates a wide range of useful descriptive stats
       dtMeans <- useDt[, lapply(.SD, mean, na.rm=T), by = byVars.str, .SDcols = vars]
       dtS2    <- useDt[, lapply(.SD, var,  na.rm=T), by = byVars.str, .SDcols = vars]

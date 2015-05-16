@@ -18,7 +18,7 @@
   dataPath <- "./data/constructed-data/" # File path to locate and save data
   scriptPath <- "~/GitHub/after-school-collab/scripts"
 
-  library("reshape")
+  library("reshape2")
   #library("plyr")
   library("data.table")
   source(paste0(scriptPath, "/create_summary_stats_helper_functions.R"))
@@ -83,7 +83,7 @@
         descVars <- c(descVars, newVar)
       }
     }
-  } # XXX There's may be a more elegant way to do this. Note that model.matrix(~0+var) drops observations with NAs, returning a vector of shorter length (which, at this stage, we don't want)
+  }
   descVars <- descVars[!(descVars %in% c("isat_mathpl", "isat_readpl"))] # Remove character variables
 
   # XXX Need to revisit where these variables are being generated as a character
@@ -92,7 +92,7 @@
     myData[, v]  <- as.numeric(myData[, v])  
   }
   
-  subVars <- c("sid", "org", "Collab", orglist, "site", "program", "schlname", "fGradeLvl", "fGradeGrp_K5_68_HS", "year", "schlid", descVars) 
+  subVars <- c("sid", "org", "Collab", orglist, "site", "program", "region", "schlname", "fGradeLvl", "fGradeGrp_K5_68_HS", "year", "schlid", descVars) 
   calcData <- myData[, subVars]
   rm(myData)
   
@@ -103,31 +103,75 @@
 #------------------------------
 #------------------------------  
 
-  # Run Calculations across various summary levels
-    print("Initiating calculations for full collaborative")
-    stats.byCollab    <- runStats(byOrgVar = "Collab", byYearVar = "year")
-    stats.byCollabGr  <- runStats(byOrgVar = "Collab", byYearVar = "year", byGradeVar = "fGradeLvl")
-    stats.byCollabGrp <- runStats(byOrgVar = "Collab", byYearVar = "year", byGradeVar = "fGradeGrp_K5_68_HS")
-    stats.collab      <- rbind(stats.byCollab, stats.byCollabGr, stats.byCollabGrp)    
-  
-    stats.org          <- stats.collab
-    rm(stats.collab, stats.byCollab, stats.byCollabGr, stats.byCollabGrp)
-
-    # Run statistics for each partner organizations
-    for (myOrg in orglist){
-      print(paste0("Initiating calculations for ", myOrg))
-      stats.byOrg     <- runStats(byOrgVar = myOrg, byYearVar = "year")
-      stats.byOrgGrp  <- runStats(byOrgVar = myOrg, byYearVar = "year", byGradeVar   = "fGradeGrp_K5_68_HS")
-      stats.byOrgGr   <- runStats(byOrgVar = myOrg, byYearVar = "year", byGradeVar   = "fGradeLvl")
-      stats.bySite    <- runStats(byOrgVar = myOrg, byYearVar = "year", bySiteVar    = "site")
-      stats.byProg    <- runStats(byOrgVar = myOrg, byYearVar = "year", byProgramVar = "program")
-      #stats.bySchl    <- runStats(byOrgVar = myOrg, byYearVar = "year", bySchlVar    = "schlname")
-      stats.org       <- rbind(stats.org, stats.byOrg, stats.bySite, stats.byProg, stats.byOrgGrp, stats.byOrgGr) # stats.bySchl  #stats.bySiteGr, stats.bySiteGrp, stats.byProgGr, stats.byProgGrp)
+  # Pseudocode: new descriptive approach
+    # Create list of stock data cuts to perform--recycle desc vars and by's, submitted as a unidimensional vector
+    withinOrgSlices <- c("site", "program") # These are comparisons that only make sense within organization
+    sliceList <- c(withinOrgSlices, "fGradeLvl", "fGradeGrp_K5_68_HS", "bGender_Male", "bLunch_FR") # XXX Later include dosage categories
+    allOrgList <- c("Collab", orglist)
+    allSlices <- cbind(rep(allOrgList, each = length(perallSlices)),
+                       rep(perallSlices, times = length(allOrgList)),
+                       "year")
+    allSlicesComma <- sapply(1:nrow(allSlices), function(r) c(allSlices[r, 1], paste(allSlices[r,], collapse = ",")))
+    # Add special orders for organizations
+    allSlicesComma <- rbind(t(allSlicesComma),
+                            c("ASM", "ASM,region,year"),
+                            c("ASM", "ASM,term,year"))
+    dfSliceRuns <- data.frame(allSlicesComma, stringsAsFactors = F)
+    colnames(dfSliceRuns) <- c("org", "sliceVars")
+    dfSliceRuns$inclNon <- ifelse(grepl(p0("(", paste(withinOrgComps, collapse = ")|("), ")"), dfSliceRuns$by), 0, 1)
+     
+  # Prepare organization specific files and information
+  # XXX Check in DFSS code what environment these objects are created in
+    dtCalcData <- data.table(calcData) # key will be assigned in the loop for the appropriate by
+    for (o in allOrgList){
+      # Prep data subset to each org
+        assign(p0("dt", o, "Only"), data.table(calcData[calcData[,o] == o,]))
+      
+      # Get list of all variables that or has data slices
+        allSlices <- paste(dfSliceRuns$sliceVars[dfSliceRuns$org == o], collapse = ",")
+        assign(p0(o, "Slices"), unique(strsplit(allSlices, ",")[[1]]))
     }
-    
-  colnames(stats.org)[1:6] <- c("org", "site", "program", "schlname", "grade", "year")
-  
-  rm(stats.byOrg, stats.byOrgGrp, stats.byOrgGr, stats.bySite, stats.byProg) # stats.bySchl # stats.bySiteGr, stats.bySiteGrp, stats.byProgGr, stats.byProgGrp)
+
+  # Loop calculations using foreach
+    statNames <- rownames(calcData(data[1,])) 
+    keepStats <- c("mean", "SE.mean", "std.dev", "nbr.val")
+    lStatsOut <- foreach (r in 1:nrow(dfSliceRuns)) %dopar% {
+      attach(dfSliceRuns[r,]) # Spills "org", "sliceVars", and "includeNon" into the environment
+      if (includeNon == 1){
+        useData <- dtCalcData
+      } else {
+        useData <- get(p0(org, "Only")) # XXX update environment
+      }
+      dtUseData <- data.table(UseData, by = sliceVars)
+      dtStats <- dtUseData[, lapply(.SD, stat.desc), by = sliceVars, .SDcols = descVars]
+      dfStats <- data.frame(dtStats)
+      dfStats$stat <- statNames
+      dfStats <- dfStats[dfStats$stat %in% keepStats,]
+      
+      # Fill in missing columns
+      orgSlices <- get(p0(org, "Slices")) # XXX update environment
+      missingSlices <- orgSlices[!(orgSlices %in% cn(dfStats)]
+      dfStats[, missingSlices] <- "All"
+    }
+
+    # Compile output across organizations and generate id
+    for (o in allOrgList){
+      trialAppend <- lStatsOut[grepl(o, names(lStatsOut))]
+      orgSlices <- get(p0(org, "Slices")) # XXX update environment
+      trialAppend$id <- sapply(1:nrow(trialAppend), 
+                               function(r)
+                                 paste(paste(varList, trialAppend[r, varList], paste = ":"), collapse = "_"))
+        # Will yield <var1>:<val1>_<var2>:<val2>_...
+    }
+
+
+    # For peer stats calc
+      # Set up loop across organizations
+      # Cache data set for org-only calculations
+      # Set up parallel loop across all org rows
+      # Unpack the id column to allow for subsetting
+      # Apply calculation
+    # Post processing to harmonize multiple grade columns ("fGradeLvl", "fGradeGrp_K5_68_HS") into one ("grade")
 
   
 #----------------------------------------------------------------------------
@@ -221,39 +265,45 @@
 ## Compile and save output
 #-------------------------
     
-    descStats    <- rbind(stats.org[, colnames(stats.peers)], stats.peers)
-    descStats$plusminus <- descStats$se_mean * 1.96
-    descStats <- within(descStats, {
-      id <- paste(org, site, program, schlname, grade, year, variable, sep="_")
-      
-      # Suppress calculations for small or invalid calculations
-      plusminus[n  < 10] <- NA
-      plusminus[n == NA] <- NA
-      mean[n  < 10]      <- NA
-      mean[n == NA]      <- NA
-    })
+  # Consolidate the grade variables and update record IDs
+    XXX$grade = ifelse(XXX$fGradeLvl != "All",
+                       XXX$fGradeLvl,
+                       XXX$fGradeGrp_K5_68_HS)
+    # XXX Need to update the id here
 
-    save(descStats, file = paste0(dataPath, "descStats.Rda"))
-
-    # Subset the file for handling, since the total size is getting to be unnecessarily unwieldy. At one point, this was 47mb. This subsetting halves the size.
+  descStats    <- rbind(stats.org[, colnames(stats.peers)], stats.peers)
+  descStats$plusminus <- descStats$se_mean * 1.96
+  descStats <- within(descStats, {
+    id <- paste(org, site, program, schlname, grade, year, variable, sep="_")
     
-    descStatsOut <- descStats[, c("mean", "n", "var_mean", "se_mean", "plusminus", "id")] 
-    write.csv(descStatsOut, file = paste0(dataPath, "descStats.csv"), row.names = F)
+    # Suppress calculations for small or invalid calculations
+    plusminus[n  < 10] <- NA
+    plusminus[n == NA] <- NA
+    mean[n  < 10]      <- NA
+    mean[n == NA]      <- NA
+  })
 
-    combos <- unique(descStats[, c("org", "site", "program", "schlname", "grade", "year")])
-    combos$id <- paste(combos$org, combos$site, combos$program, combos$grade, combos$year, sep="_")
-    combos$gradefilter <- ifelse(combos$grade!="All" & (combos$site!="All" | combos$program!="All"), 1, 0)
-    rownames(combos) <- NULL
+  save(descStats, file = paste0(dataPath, "descStats.Rda"))
 
-    combosXYears <- unique(combos[, !grepl("year|id", colnames(combos))])
-
-    orgYearCombos <- data.frame(unique(combos[!grepl("Non-", combos$org), c("org", "year")]))
-      colnames(orgYearCombos) <- c("org", "year")
-
-    orgCombos <- data.frame(org=unique(orgYearCombos[, c("org")]))
-
-    for (f in c("combos", "combosXYears", "orgYearCombos", "orgCombos")){
-      d <- get(f); rownames(d) <- NULL
-      write.csv(d, file = paste0(dataPath, f %&% ".csv"))
-    }
+  # Subset the file for handling, since the total size is getting to be unnecessarily unwieldy. At one point, this was 47mb. This subsetting halves the size.
   
+  descStatsOut <- descStats[, c("mean", "n", "var_mean", "se_mean", "plusminus", "id")] 
+  write.csv(descStatsOut, file = paste0(dataPath, "descStats.csv"), row.names = F)
+
+  combos <- unique(descStats[, c("org", "site", "program", "schlname", "grade", "year")])
+  combos$id <- paste(combos$org, combos$site, combos$program, combos$grade, combos$year, sep="_")
+  combos$gradefilter <- ifelse(combos$grade!="All" & (combos$site!="All" | combos$program!="All"), 1, 0)
+  rownames(combos) <- NULL
+
+  combosXYears <- unique(combos[, !grepl("year|id", colnames(combos))])
+
+  orgYearCombos <- data.frame(unique(combos[!grepl("Non-", combos$org), c("org", "year")]))
+    colnames(orgYearCombos) <- c("org", "year")
+
+  orgCombos <- data.frame(org=unique(orgYearCombos[, c("org")]))
+
+  for (f in c("combos", "combosXYears", "orgYearCombos", "orgCombos")){
+    d <- get(f); rownames(d) <- NULL
+    write.csv(d, file = paste0(dataPath, f %&% ".csv"))
+  }
+

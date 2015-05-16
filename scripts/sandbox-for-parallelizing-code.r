@@ -83,7 +83,7 @@
   # from Unix prompt, can get number of processors from unix prompt -- -- cat /proc/cpuinfo | grep ^proc
     #cl <- makeCluster(3)
     #registerDoParallel(cl)
-    registerDoParallel(cores = 4)
+    registerDoParallel(cores = detectCores())
     getDoParName()
     getDoParWorkers()
     system.time(bootParallel <- foreach(1:R, .combine = rbind) %dopar% oneBootRep(df))
