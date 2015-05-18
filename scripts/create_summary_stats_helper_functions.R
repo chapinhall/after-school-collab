@@ -149,9 +149,9 @@
     stats.props$prop <- stats.props$prop / sum(stats.props$prop) # inflate the proportions to reflect any drops of schools with missing values
     stats.props$prop2 <- stats.props$prop^2 # This weight is necessary for variance calculations, indicated in the method notes
     
-    mu <- weighted.mean(stats.props$mean, stats.props$prop, na.rm = T)
-    n  <- weighted.mean(stats.props$n, stats.props$prop, na.rm = T)
-    s2 <- sum(stats.props$var_mean * stats.props$prop2)
+    mean <- weighted.mean(stats.props$mean, stats.props$prop, na.rm = T)
+    nbr.val  <- weighted.mean(stats.props$n, stats.props$prop, na.rm = T)
+    var <- sum(stats.props$var_mean * stats.props$prop2)
     
     out <- data.frame(variable = myVar, mean = mu, n = n, var_mean = s2, se_mean = sqrt(s2))
     return(out)
