@@ -59,7 +59,7 @@
 
 # Loop
   boots <- NULL
-  desc <- matrix(rep(0, times = ncol(df)*nrow(stat.desc(df))), nrow = nrow(stat.desc(df)))
+  desc <- NULL # matrix(rep(0, times = ncol(df)*nrow(stat.desc(df))), nrow = nrow(stat.desc(df)))
   system.time({
     for (i in 1:R) {
       bootFor <- rbind(boots, cbind(i, oneBootRep(df)))
@@ -83,7 +83,7 @@
   # from Unix prompt, can get number of processors from unix prompt -- -- cat /proc/cpuinfo | grep ^proc
     #cl <- makeCluster(3)
     #registerDoParallel(cl)
-    registerDoParallel(cores = 4)
+    registerDoParallel(cores = 12)
     getDoParName()
     getDoParWorkers()
     system.time(bootParallel <- foreach(1:R, .combine = rbind) %dopar% oneBootRep(df))
