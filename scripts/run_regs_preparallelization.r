@@ -14,8 +14,6 @@
   library("reshape2")
   library("plyr")
   library("lme4")
-  library("foreach")
-  library("doParallel")
   myDir <- "/projects/Integrated_Evaluation_Youth_Support_Services/"
   setwd(myDir)
   dataPath <- "./data/constructed-data/"
@@ -65,26 +63,7 @@
       d_sub <- d_sub[, !grepl("_dosage_", cn(d_sub))] #  Drop continuously varying treatment columns which we won't use
       d_sub <- d_sub[, !grepl("_fdosage_.+[^(None)]$", cn(d_sub))] # Drop "fdosage" columns that do not end in "None". (These are the ones that include *all* dosage categories *including* a "none" category.)
   
-    # Update the MVMS constructions
-      # This is an ad-hoc attempt to specify a more parsimonious model, to reduce colinearity and clean some previously-uncertain data processing
-      # This is starting by removing just MVMS_Respect and MVMS_Comm which have lower response rates in 2014. This may later involve an even more parsimonious specification.
-      # See the "sandbox-for-mvms-analysis.R to see these demos
-      
-        mvmsXs <- c("MVMS_AcadEng", "MVMS_EmHealth", "MVMS_Parent", "MVMS_Peer", "MVMS_Study", "MVMS_Safety", "MVMS_Connect")
-  
-      # Reconstruct the "missing" variable
-        d_sub$MVMS_Miss <- 0
-        for (m in mvmsXs){
-          d_sub$MVMS_Miss[d_sub[, m] == 0] <- 1
-        }
-      # Ensure that all responses are consistent with missing if any of them is, for the sake of clean estimation
-        d_sub[d_sub$MVMS_Miss == 1, mvmsXs] <- 0
-        colMeans(subset(d_sub, MVMS_Miss == 1, mvmsXs))
-          # Looks like it worked
-  
-  #--------------------------
   ### Set up regression lists
-  #--------------------------
   
     depVars <- c("Pct_NonAbsent", "isat_mathss", "isat_readss", "nwea_math_spring_rit", "nwea_read_spring_rit", "explore_compss", "plan_mathss", "plan_readss") # "pct_present_nounex"
       # XXX "bOnTrack",  ... need to add this back in when 2013-14 OnTrack data is finally in
@@ -113,8 +92,7 @@
                              Gr10 = c("explore_compss_lag"),
                              Gr11 = c("plan_mathss_lag", "plan_readss_lag")) # XXX Will need to update this as the ISAT testing regime give way to NWEA
     #mvmsXs <- grepv("MVMS_.+[^se]$", cn(d_sub))
-    #mvmsXs <- c("MVMS_AcadEng", "MVMS_EmHealth", "MVMS_Comm", "MVMS_Parent", "MVMS_Peer", "MVMS_Study", "MVMS_Safety", "MVMS_Connect", "MVMS_Respect", "MVMS_miss")
-    mvmsXs <- mvmsXs # This is specified above in the data setup
+    mvmsXs <- c("MVMS_AcadEng", "MVMS_EmHealth", "MVMS_Comm", "MVMS_Parent", "MVMS_Peer", "MVMS_Study", "MVMS_Safety", "MVMS_Connect", "MVMS_Respect", "MVMS_miss")
   
     lXsByGrade <- list(Gr6 = mvmsXs, Gr7 = mvmsXs, Gr8 = mvmsXs, Gr9 = mvmsXs, Gr10 = mvmsXs, Gr11 = mvmsXs, Gr12 = mvmsXs)
     schCtrlsList <- c("SchFE") # , "SchRE"
@@ -172,34 +150,25 @@
 ###  Loop Estimation For Multiple Outcomes ###
 #--------------------------------------------#
 #--------------------------------------------#
+
+# Set up trial values for auditing the kernel code
+  myY <- "isat_mathss"
+  myG <- 8
+  treatSpec <- "progCatDoseTrt"
+  method <- "SchFE"
+  
+### Set loop of runs
+  
+  
+### Run estimation specifications in parallel
+  
+  regOut <- NULL
+  for (myY in depVars) {
     
-  ### Set loop of runs
-    regRuns <- NULL
-    for (yr in 2014){
-    for (myY in depVars) {
-      myYGrades <- lGrRange[myY][[1]]
+    myYGrades <- lGrRange[myY][[1]]
     for (myG in myYGrades){
-    for (treatSpec in names(lTrtRunList)){
-      treatVars <- lTrtRunList[treatSpec][[1]]
-    for (method in schCtrlsList){
-      regRuns <- rbind(regRuns, data.frame(myY = myY, myG = myG, myYear = yr, treatSpec = treatSpec, method = method, stringsAsFactors = F))
-    }}}}}
-  
-  ### Run estimation specifications in parallel
-  
-  cl <- makeCluster(detectCores() - 1)
-  registerDoParallel(cl)
-  
-  system.time({
-  regOut <- foreach(r = 1:nrow(regRuns), .combine = rbind) %dopar% {
-    
-    # Get run parameters
-      for (runParm in cn(regRuns)){
-        assign(runParm, regRuns[r, runParm])
-      }
-    
-    # Subset data, and identify regression controls, by grade and outcome
-      useData <- subset(d_sub, nGradeLvl == myG & year == myYear)
+      # Subset data, and identify regression controls, by grade and outcome
+      useData <- d_sub[d_sub$nGradeLvl == myG,]
       myLags <- lNonTestLags[myY][[1]]
       if (myY %in% varList_TestLag) {
         testLags <- lTestLagsByGrade[p0("Gr", myG)][[1]]
@@ -207,97 +176,103 @@
       }
       xsByGrade <- unlist(lXsByGrade[p0("Gr", myG)[[1]]])
       fmBase <- paste(myY, "~", paste(c(myXs, myLags, xsByGrade), collapse = " + "))
-    
-    # Subset treatment controls to those with meaningful variation, and calculate the number of non-zero/none-[None] values
-      trtClass <- NULL
-      for (tv in treatVars) trtClass <- c(trtClass, class(useData[, tv]))
-      ctsTrtVars <- treatVars[trtClass == "numeric"]
-      facTrtVars <- treatVars[trtClass == "factor"]
-      # Figure out which data set will be used in regressions, based on drops due to non-treatment regressors
-      regCtrls <- gsub("^\\s+|\\s+$", "", unlist(strsplit(chartr("~+", ",,", fmBase), ","))) # This separates the regression formula into a vector of the variable names
-      regData <- na.omit(useData[, c(regCtrls, treatVars)]) # complete.cases() also apparently allows some flexibility to flag subset of columns
       
-      useTrt <- NULL; trtVarNs <- NULL
-      for (ctv in ctsTrtVars) {
-        if (var(regData[, ctv] != 0, na.rm = T)) {
-          useTrt <- c(useTrt, ctv)
-          addNs <- data.frame(x = ctv, N = sum(useData[, ctv] != 0, na.rm = T))
-          trtVarNs <- rbind(trtVarNs, addNs)
-        }          
-      }
-      for (ftv in facTrtVars) {
-        myTable <- table(regData[regData[, ftv] != "[None]", ftv])
-        if (length(myTable[myTable!=0]) > 0) {
-          useTrt <- c(useTrt, ftv)
-          dfTable <- data.frame(myTable)
-          dfTable$x <- p0(ftv, dfTable$Var1)
-          trtVarNs <- rbind(trtVarNs, dfTable[!grepl("\\[None\\]", dfTable$x), c("x", "Freq")])
-        }
-      }
-      colnames(trtVarNs) <- c("x", "N")
-      fmTreat   <- plusPaste(c(fmBase, useTrt))
+      for (treatSpec in names(lTrtRunList)){
+        treatVars <- lTrtRunList[treatSpec][[1]]
+        
+        # Subset treatment controls to those with meaningful variation, and calculate the number of non-zero/none-[None] values
+          trtClass <- NULL
+          for (tv in treatVars) trtClass <- c(trtClass, class(useData[, tv]))
+          ctsTrtVars <- treatVars[trtClass == "numeric"]
+          facTrtVars <- treatVars[trtClass == "factor"]
+          # Figure out which data set will be used in regressions, based on drops due to non-treatment regressors
+          regCtrls <- gsub("^\\s+|\\s+$", "", unlist(strsplit(chartr("~+", ",,", fmBase), ",")))
+          regData <- na.omit(useData[, c(regCtrls, treatVars)]) # complete.cases() also apparently allows some flexibility to flag subset of columns
+          
+          useTrt <- NULL; trtVarNs <- NULL
+          for (ctv in ctsTrtVars) {
+            if (var(regData[, ctv] != 0, na.rm = T)) {
+              useTrt <- c(useTrt, ctv)
+              addNs <- data.frame(x = ctv, N = sum(useData[, ctv] != 0, na.rm = T))
+              trtVarNs <- rbind(trtVarNs, addNs)
+            }          
+          }
+          for (ftv in facTrtVars) {
+            myTable <- table(regData[regData[, ftv] != "[None]", ftv])
+            if (length(myTable[myTable!=0]) > 0) {
+              useTrt <- c(useTrt, ftv)
+              dfTable <- data.frame(myTable)
+              dfTable$x <- p0(ftv, dfTable$Var1)
+              trtVarNs <- rbind(trtVarNs, dfTable[!grepl("\\[None\\]", dfTable$x), c("x", "Freq")])
+            }
+          }
+        colnames(trtVarNs) <- c("x", "N")
+        fmTreat   <- plusPaste(c(fmBase, useTrt))
+    
+        for (method in schCtrlsList){
+    
+          print(paste("Running outcome", myY, "for grade", myG, "for treatSpec", treatSpec, "with method", method))
+          #print(paste("Specification (minus sch-based controls) is: ", fmTreat))
+          if (method == "SchRE"){
+            addReg <- summary(lmer(as.formula(paste(fmTreat, "+ (1|fSch)")), data = useData))
+          } else if (method == "SchFE"){
+            addReg <- summary(lm(  as.formula(paste(fmTreat, "+    fSch ")), data = useData))
+          }
 
-    # Run analysis based on specification of school effects
-      if (method == "SchRE"){
-        addReg <- summary(lmer(as.formula(paste(fmTreat, "+ (1|fSch)")), data = useData))
-      } else if (method == "SchFE"){
-        addReg <- summary(lm(  as.formula(paste(fmTreat, "+    fSch ")), data = useData))
-      }
+          # Save output
+          myRegOut <- extractLmStats(addReg)
+          myRegOut <- myRegOut[!grepl("fSch", myRegOut$x),]
+          
+          myRegOutSupr <- merge(myRegOut, trtVarNs, by = "x", all.x = T) # The "Supr" is for "supressed"
+          for (suprCol in c("b", "se", "plusminus", "ul", "ll", "p", "t")){
+            myRegOutSupr[ifelse(is.na(myRegOutSupr$N), FALSE, myRegOutSupr$N < 10), suprCol] <- NA
+          } 
+          myRegOutSupr[ifelse(is.na(myRegOutSupr$N), FALSE, myRegOutSupr$N < 10), "sigStars"] <- ""
+          
+          # Add documentation to the output which contains a statement about all of the controls in prose
+          ctrls <- myRegOutSupr$x[!grepl(p0("N|df|(adj.r.squared)|", paste(useTrt, collapse = "|")), myRegOutSupr$x)]
+          ctrlNames <- merge(ctrls, varMap, by.x = "x", by.y = "VarName", all.x = T)
+          ctrlList <- p0("This statistical analysis accounts for youth differences in the following indicators: ", paste(ctrlNames$VarDesc[!is.na(ctrlNames$VarDesc)], collapse = ", "), ".")
+          ctrlListRow <- sapply(cn(myRegOutSupr), function(x) NA)
+          ctrlListRow$x <- "Controls"; ctrlListRow$descr <- ctrlList
+          myRegOutSupr$descr <- ""
+          myRegOutSupr <- rbind(myRegOutSupr, ctrlListRow)
+          
+          myRegOutSupr$outcome <- myY
+          myRegOutSupr$grade <- myG
+          myRegOutSupr$id <- paste(myY, treatSpec, myG, method, myRegOutSupr$x, sep = "_")
+          regOut <- rbind(regOut, myRegOutSupr)
+        } # End of loop across sch level controls
+
+      } # End of loop across treatment specifications
     
-    # Save output
-      myRegOut <- extractLmStats(addReg)
-      myRegOut <- myRegOut[!grepl("fSch", myRegOut$x),]
-      
-      myRegOutSupr <- merge(myRegOut, trtVarNs, by = "x", all.x = T) # The "Supr" is for "supressed"
-      for (suprCol in c("b", "se", "plusminus", "ul", "ll", "p", "t")){
-        myRegOutSupr[ifelse(is.na(myRegOutSupr$N), FALSE, myRegOutSupr$N < 10), suprCol] <- NA
-      } 
-      myRegOutSupr[ifelse(is.na(myRegOutSupr$N), FALSE, myRegOutSupr$N < 10), "sigStars"] <- ""
-      
-    # Add documentation to the output which contains a statement about all of the controls in prose
-      ctrls <- myRegOutSupr$x[!grepl(p0("N|df|(adj.r.squared)|", paste(useTrt, collapse = "|")), myRegOutSupr$x)]
-      ctrlNames <- merge(ctrls, varMap, by.x = "x", by.y = "VarName", all.x = T)
-      ctrlList <- p0("This statistical analysis accounts for youth differences in the following indicators: ", paste(ctrlNames$VarDesc[!is.na(ctrlNames$VarDesc)], collapse = ", "), ".")
-      ctrlListRow <- sapply(cn(myRegOutSupr), function(x) NA)
-      ctrlListRow$x <- "Controls"; ctrlListRow$descr <- ctrlList
-      myRegOutSupr$descr <- ""
-      myRegOutSupr <- rbind(myRegOutSupr, ctrlListRow)
+    } # End of loop across grades
     
-      myRegOutSupr$outcome <- myY
-      myRegOutSupr$grade   <- myG
-      myRegOutSupr$year    <- myYear
-      myRegOutSupr$id      <- paste(myY, myG, myYear, treatSpec, method, myRegOutSupr$x, sep = "_")
-      #regOut <- rbind(regOut, myRegOutSupr)
-      return(myRegOutSupr)
-    
-  } # End of parallelization loop
-  }) # End of calculation of system time
-  
-  stopCluster(cl)
-  
+  } # End of Loop across dependent variables
+
 #----------------------------------------------------
 ### Rescale the estimates to more interpretable units
 #----------------------------------------------------
   # This can be either typical growth in the outcome (probably only available for ISAT), or sd of the outcome
   
   # Calculate typical gains
-    gainData <- within(d_sub[, c("nGradeLvl", "year", "isat_mathss", "isat_mathss_lag", "isat_readss", "isat_readss_lag")], {
+    gainData <- within(d_sub[, c("nGradeLvl", "isat_mathss", "isat_mathss_lag", "isat_readss", "isat_readss_lag")], {
       isat_mathss_gain <- isat_mathss - isat_mathss_lag
       isat_readss_gain <- isat_readss - isat_readss_lag
     })
-    gains <- aggregate(cbind(isat_mathss_gain, isat_readss_gain) ~ nGradeLvl + year, gainData, mean, na.rm = T)
-    gains_long <- within(melt(gains, id.vars = c("nGradeLvl", "year")), {
+    gains <- aggregate(cbind(isat_mathss_gain, isat_readss_gain) ~ nGradeLvl, gainData, mean, na.rm = T)
+    gains_long <- within(melt(gains, id.vars = "nGradeLvl"), {
       outcome <- gsub("_gain", "", variable)
       grade <- nGradeLvl
       gain <- value
     })
-    regOut_gain <- merge(regOut, gains_long[, c("outcome", "grade", "year", "gain")], by = c("outcome", "grade", "year"), all.x = T)
+    regOut_gain <- merge(regOut, gains_long[, c("outcome", "grade", "gain")], by = c("outcome", "grade"), all.x = T)
   
   # Calculate standard deviations
     sdCalcs <- NULL
     for (dv in depVars) {
-      addCalcs <- aggregate(as.formula(p0(dv, "~ nGradeLvl + year")), d_sub, sd, na.rm = T)
-      sdCalcs <- rbind(sdCalcs, melt(addCalcs, id.vars = c("nGradeLvl", "year")))
+      addCalcs <- aggregate(as.formula(p0(dv, "~ nGradeLvl")), d_sub, sd, na.rm = T)
+      sdCalcs <- rbind(sdCalcs, melt(addCalcs, id.var = "nGradeLvl"))
     }
     colnames(sdCalcs) <- c("grade", "outcome", "sd")
     regOut_gainSds <- merge(regOut_gain, sdCalcs, by = c("outcome", "grade"), all.x = T)
@@ -317,15 +292,15 @@
   # This improves the statistical power and interpretability of the estimates
   # Merge in grade levels
     gradeMap <- data.frame(matrix(c("PK", "K", as.character(1:12),
-                                  rep("PK5", 7), rep("Gr68", 3), rep("GrHs", 4)), ncol = 2))
+                                    rep("PK5", 7), rep("Gr68", 3), rep("GrHs", 4)), ncol = 2))
     colnames(gradeMap) <- c("grade", "GradeGroup")
-    regOut.Trt   <- regOut_rescales[!is.na(regOut_rescales$trtSum), ]
+    regOut.Trt <- regOut[!is.na(regOut$trtSum), ]
     regOut.TrtGr <- merge(regOut.Trt, gradeMap, by = "grade", all.x = T)
     regOut.TrtGr$var <- regOut.TrtGr[, "Std. Error"]^2
 
   # Summarize variables and weights across levels
     varsToWgt <- c("Estimate", "var")
-    byVars    <- c("GradeGroup", "depvar", "method", "treatSpec", "xSpec", "x", "year")
+    byVars <- c("GradeGroup", "depvar", "method", "treatSpec", "xSpec", "x")
     byVarsComma <- paste(byVars, collapse = ",")
     byVarsPlus  <- paste(byVars, collapse = " + ")
     dtRegOut.TrtGr <- data.table(regOut.TrtGr, by = byVarsComma)
@@ -342,7 +317,7 @@
     dfRegOut.TrtGrp$p <- 2*(1 - pnorm(abs(dfRegOut.TrtGrp[, "Estimate"]/dfRegOut.TrtGrp[, "Std. Error"])))
     dfRegOut.TrtGrp$sigStars <- sigStarsP(dfRegOut.TrtGrp$p)
 
-    regOut_comb <- rbind(regOut_rescales, dfRegOut.TrtGrp[, cn(regOut)]) # 
+    regOut_comb <- rbind(regOut, dfRegOut.TrtGrp[, cn(regOut)]) # 
   
 #-----------------
 ### Output results

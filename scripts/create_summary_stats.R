@@ -13,10 +13,10 @@
 
   rm(list=ls())
   try(setwd("/projects/Integrated_Evaluation_Youth_Support_Services"), silent=T)
-  try(setwd("H:/Integrated Evaluation Project for YSS Providers/Analysis/"), silent=T)
   
   dataPath <- "./data/constructed-data/" # File path to locate and save data
-  scriptPath <- "~/GitHub/after-school-collab/scripts"
+  #scriptPath <- "~/GitHub/after-school-collab/scripts"
+  scriptPath <- "./code"
 
   library("reshape2")
   #library("plyr")
@@ -37,7 +37,7 @@
     rm(Scram)
     orglist <- c("Org Alpha", "Org Beta")
   } else {
-  	load(dataPath %&% "EnrCpsAcs.Rda")
+  	load(p0(dataPath, "EnrCpsAcs.Rda"))
     myData <- EnrCpsAcs
     rm(EnrCpsAcs)    
     orglist <- c("YMCA", "ASM", "CHaA", "UCAN", "CPL") # UPDATE HERE AS WE HAVE DATA FOR NEW PARTNERS TO INCLUDE IN TOTALS.
@@ -104,9 +104,9 @@
 #------------------------------  
 
   # Create standard list of slices cuts to calculate
+    standardSlices  <- c("all", "fGradeLvl", "fGradeGrp_K5_68_HS", "bGender_Male", "bLunch_FR")
     withinOrgSlices <- c("site", "program") # These are comparisons that only make sense within organization, and won't get "non-org" calculations
-    standardSlices  <- c("fGradeLvl", "fGradeGrp_K5_68_HS", "bGender_Male", "bLunch_FR")
-    sliceList <- c(withinOrgSlices, standardSlices) # XXX Later include dosage categories
+    sliceList <- c(standardSlices, withinOrgSlices) # XXX Later include dosage categories
     allOrgList <- c("Collab", orglist)
     allSlices <- cbind(rep(allOrgList, each  = length(sliceList)),
                        rep(sliceList,  times = length(allOrgList)),
@@ -115,8 +115,7 @@
 
   # Add special orders for organizations
     allSlicesComma <- rbind(t(allSlicesComma),
-                            c("ASM", "ASM,region,year"),
-                            c("ASM", "ASM,term,year"))
+                            c("ASM", "ASM,region,year")) #c("ASM", "ASM,term,year"))
 
   # Format runs in data frame, and determine which slices are for 
     dfSliceRuns <- data.frame(allSlicesComma, stringsAsFactors = F)
@@ -124,64 +123,60 @@
     dfSliceRuns$inclNon <- ifelse(grepl(p0("(", paste(c(withinOrgSlices, "region", "term"), collapse = ")|("),")"), dfSliceRuns$sliceVars), 0, 1)
      
   # Prepare organization specific files and information
-  # XXX Check in DFSS code what environment these objects are created in
-    dtCalcData <- data.table(calcData) # key will be assigned in the loop for the appropriate by
+    calcData$all <- 1
     myEnv <- new.env()
-    for (o in allOrgList){
-      # Prep data subset to each org
-        assign(p0("dt", o, "Only"), data.table(calcData[calcData[,o] == o,]), envir = myEnv)
-      
-      # Get list of all variables that or has data slices
-      # XXX May not be necessary if we melt all org slice calculations into an "org", "year", "slicevar", "sliceVal" format
-#         allSlices <- paste(dfSliceRuns$sliceVars[dfSliceRuns$org == o], collapse = ",")
-#         assign(p0(o, "Slices"), unique(strsplit(allSlices, ",")[[1]]), envir = myEnv)
+    for (org in allOrgList){
+        assign(p0(org, "Only"), calcData[calcData[,org] == org,], envir = myEnv)
     }
 
   # Loop calculations using foreach
 
-    statNames <- rownames(calcData(data[1,])) 
+    statNames <- rownames(stat.desc(calcData[1:1000,]))
     keepStats <- c("mean", "SE.mean", "nbr.val")
 
-    statsOut <- foreach (r = 1:nrow(dfSliceRuns). combine = rbind) %dopar% {
-      attach(dfSliceRuns[r,]) # Spills "org", "sliceVars", and "includeNon" into the environment
-      if (includeNon == 1){
-        useData <- dtCalcData
+    nCores <- 10 # Using fewer than all of the cores to avoid using all resources
+    cl <- makeCluster(nCores)
+    registerDoParallel(cl)
+    getDoParName()
+    getDoParWorkers()
+
+    system.time({
+    statsOut <- foreach (r = 1:nrow(dfSliceRuns), .combine = rbind) %dopar% { # 
+      library("data.table")
+      library("pastecs")
+      library("reshape2")
+      
+      #try(detach(dfSliceRuns[r,]), silent = T)
+      #attach(dfSliceRuns[r,]) # Spills "org", "sliceVars", and "includeNon" into the environment
+      org <- dfSliceRuns$org[r]; sliceVars <- dfSliceRuns$sliceVars[r]; inclNon <- dfSliceRuns$inclNon[r]
+      
+      vSliceVars <- strsplit(sliceVars, ",")[[1]]
+      fmSliceVars <- paste(vSliceVars, collapse = " + ")
+      if (inclNon == 1){
+        useData <- calcData
       } else {
-        useData <- get(p0(org, "Only"), envir = myEnv) # XXX update environment
+        useData <- get(p0(org, "Only"), envir = myEnv)
       }
-      dtUseData <- data.table(UseData, by = sliceVars)
+      dups <- duplicated(useData[, c("sid", vSliceVars)])
+      undupData <- useData[!dups,]
+      dtUseData <- data.table(undupData, by = sliceVars)
       dtStats <- dtUseData[, lapply(.SD, stat.desc), by = sliceVars, .SDcols = descVars]
       dfStats <- data.frame(dtStats)
       dfStats$stat <- statNames
       dfStats <- dfStats[dfStats$stat %in% keepStats,]
-      # XXX May need to melt and cast this, to get summarized variables long and stats wide
+
+      dfStats_l <- melt(dfStats, id = c(vSliceVars, "stat"), variable = "variable")
+      dfStats <- dcast(dfStats_l, as.formula(p0(fmSliceVars, " + variable ~ stat")))
       
-      # Fill in missing columns
-#       orgSlices <- get(p0(org, "Slices"), envir = myEnv) # XXX update environment
-#       missingSlices <- orgSlices[!(orgSlices %in% cn(dfStats)]
-#       dfStats[, missingSlices] <- "All"
+      # XXX This is a bit hard-coded -- return to generalize it
+      colnames(dfStats)[1:3] <- c("participation", "sliceVal", "year")
+      dfStats$sliceVar <- vSliceVars[2]
 
-      # Melt data set into (for now) three columns: "Participation (i.e. org, non-org, sch-based-peers)", "Slice Var", "Slice Val"
-      dfStats_l <- melt(dfStats, by = c(org, "year"), variable.name = "sliceVar", value.name = "sliceVal")
-      return(dfStats_l)
+      return(dfStats)
     }
+    })
 
-  # Compile output across organizations and generate id
-  # XXX May not need this if each of the orgs' output data formats are the same: org, year, slice var, slice val
-    
-#     for (o in allOrgList){
-#       trialAppend <- lStatsOut[grepl(o, names(lStatsOut))]
-      # XXX The following is pending how the melt and combination goes
-#       orgSlices <- get(p0(org, "Slices")) # XXX update environment
-#       trialAppend$id <- sapply(1:nrow(trialAppend), 
-#                                function(r)
-#                                  paste(paste(varList, trialAppend[r, varList], paste = ":"), collapse = "_"))
-        # Will yield <var1>:<val1>_<var2>:<val2>_...
-#     }
-
-# Apply subset based on slice var and slice val
-  # Apply calculations across all descriptive variables in ordinary for loop
-# Post processing to harmonize multiple grade columns ("fGradeLvl", "fGradeGrp_K5_68_HS") into one ("grade")
+  stopCluster(cl)
 
   
 #----------------------------------------------------------------------------
@@ -201,49 +196,65 @@
   #---------------------------
 
   # Cache data set for schools of all youth in schools attended by anyone served by each org
-    for (org in allOrgList){
-      orgSlices <- get(p0(org, "Slices")) # XXX update environment
-      orgSchools <- unique(calcData$schlid[calcData[, org] == org])
-      assign(p0(o, "OwnSchools"),
-             calcData[calcData$schlid %in% orgSchools,],
-             envir = myEnv)
+    for (y in 2012:2014){
+      calcDataY <- subset(calcData, year == y)
+      for (org in allOrgList){
+        orgSchools <- unique(calcDataY$schlid[calcDataY[, org] == org])
+        assign(p0(org, "OwnSchools", y),
+               subset(calcDataY, schlid %in% orgSchools & year == y),
+               envir = myEnv)
+      }
     }
 
   # Set up parallel loop across all org/slicevar/sliceval rows, each of which pull that org's data
-    subsetVars <- c("org", "sliceVar", "sliceVal")
-    runList <- unique(stats.org[, subsetVars]) # Necessary because stats.org is one line per variable
+    subsetVars <- c("participation", "sliceVar", "sliceVal", "year")
+    runList <- unique(statsOut[, subsetVars]) # Necessary because stats.org is one line per variable
     naRows <- apply(runList, 1, function(x) any(is.na(x)))
     runList <- runList[!naRows, ]
-    rl <- runList[!grepl("Non", runList$org),] # Remove all non-org runs, so that we only calculate school-based peers for served populations
+    rl <- runList[!grepl("Non", runList$participation),] # Remove all non-org runs, so that we only calculate school-based peers for served populations
 
   #------------------------------------------------------------
   ## Call the peer averages function for each org's calculation
   #------------------------------------------------------------
 
-    stats.peers <- foreach (r = 1:nrow(rl), .combine = rbind){
-      attach(rl[r,]) # Spills variables "org", "year", "sliceVar" and "sliceVal" into the environment
+    nCores <- 10 # Using fewer than all of the cores to avoid using all resources
+    cl <- makeCluster(nCores)
+    registerDoParallel(cl)
+    getDoParName()
+    getDoParWorkers()
+
+    system.time({
+    PeerStatsOut <- foreach (r = 1:nrow(rl), .combine = rbind) %dopar% {
+      library("data.table")
+      library("pastecs")
+      library("reshape2")
+      
+      #try(detach(rl[r,]), silent = T)
+      #attach(rl[r,]) # Spills variables "participation", "year", "sliceVar" and "sliceVal" into the environment
+      participation <- rl$participation[r]; year <- rl$year[r]; sliceVar <- rl$sliceVar[r]; sliceVal <- rl$sliceVal[r]
       
       # XXX These operations were previously done with data.table objects. Consider reinstituting
       # that approach. Note that df[, var] is equivalently accessed as dt[, var, with = F]
       
       # Identify schools attended by this slice of served youth
-        dfSameSch <- get(p0(org, "OwnSchools"),
+        dfSameSch <- get(p0(participation, "OwnSchools", year),
                          envir = myEnv)
-        dfFocals <- subset(dtOwnSch,
-                           subset = as.vector([dtOwnSch[, sliceVar] == sliceVal),
-                           select = c("sid", "schlid", descVars)]
+        dfFocals <- subset(dfSameSch,
+                           subset = as.vector(dfSameSch[, sliceVar] == sliceVal &
+                                              !is.na(dfSameSch[, sliceVar]) &
+                                              dfSameSch[, participation] == participation),
+                           select = c("sid", "schlid", descVars))
         dfFocals.dups <- duplicated(dfFocals[, c("sid", "schlid")])
         dfFocals      <- dfFocals[!dfFocals.dups,]
-        focalsSchs     <- unique(dfFocals$schlid)
+        focalSchs     <- unique(dfFocals$schlid)
       
-      # Identify records of served peers in these schools
-      peerRows <- dfSameSch$year == year &
-                  dfSameSch[, sliceVar] == sliceVal &
-                  dfSameSch$schlid %in% focalSchs &
-                  !(dfSameSch$sid %in% dfFocal$sid)
-      dfPeers      <- subset(dfSameSch, subset = as.vector(peerRows), select = c("sid", "schlid", descVars))
-      dfPeers.dups <- duplicated(dfPeers[, c("sid", "schlid")])
-      dfPeers      <- dfPeers[!dfPeers.dups,]
+      # Identify records of unserved served peers in these schools
+        peerRows <- dfSameSch$year == year &
+                    dfSameSch$schlid %in% focalSchs &
+                    !(dfSameSch$sid %in% dfFocals$sid)
+        dfPeers      <- subset(dfSameSch, subset = as.vector(peerRows), select = c("sid", "schlid", descVars))
+        dfPeers.dups <- duplicated(dfPeers[, c("sid", "schlid")])
+        dfPeers      <- dfPeers[!dfPeers.dups,]
       
       # Calculate the characteristics of these peers by school
         dtPeers <- data.table(dfPeers, key = "schlid")
@@ -251,23 +262,24 @@
         dfPeerStats <- data.frame(dtPeerStats)
         dfPeerStats$stat <- statNames
         dfPeerStats <- subset(dfPeerStats, subset = stat %in% c("mean", "SE.mean", "nbr.val"))
-        # XXX May need to melt and cast this to get the variables long and the stats wide
+        
+        dfPeerStats_l <- melt(dfPeerStats, id = c("schlid", "stat"), variable = "descVar")
+        dfPeerStats <- dcast(dfPeerStats_l, schlid + descVar ~ stat)
       
       # Set up header for identifying calculations
-      outHeader <- data.frame(org = org, year = year, sliceVar = sliceVar, sliceVal = sliceVal)
+        outHeader <- data.frame(participation = participation, year = year, sliceVar = sliceVar, sliceVal = sliceVal)
       
       # Calculate the proportions to use for each variable, since different variables by school may have
       #   different numbers of NAs to drop
-#       print(paste("Performing run", i, "of ", nRuns, "or ", round(i/nRuns, 3)*100, "% done. Run is for: org =", org, ", site =", site, ", program =", program, ", schlname =", schlname, ", grade =", grade, ", year =", year))
       
       allVarCalcs <- NULL
       for (v in descVars){
         
         # Get proportions of schools represented by focal youth involved in the calculation
-          vFocalSchs <- myFocals$schlid[!is.na(dfFocals[, v])]
+          vFocalSchs <- dfFocals$schlid[!is.na(dfFocals[, v])]
           if (length(vFocalSchs) == 0) next # Some variables are not available in a given year. In this case, skip that variable in the loop
           dfSchProps <- data.frame(prop.table(table(vFocalSchs)))
-          colnames(dfSchProps) <- c("sch", "prop")
+          colnames(dfSchProps) <- c("schlid", "prop")
         
         # Calculate characteristics of peers, excluding focal youth
           peerStats_bySch <- dfPeerStats[!is.na(dfPeerStats$mean), ]
@@ -275,61 +287,58 @@
             # XXX This is a bit of a stop-gap, since some calculations have zero rows after
         
         # Get weighted average
-          peerStat <- peerStats.fn(myProps = dfSchProps, myVar = v, mySchStats = peerStats_bySch)
+          peerStat <- peerStats.fn(myProps = dfSchProps, myVar = v, mySchStats = peerStats_bySch[peerStats_bySch$descVar == v, ])
           allVarCalcs <- rbind(allVarCalcs, cbind(outHeader, peerStat))
         
       } # End of loop across descVars
 
       return(allVarCalcs)
     }
+    }) # End timing
 
-    stats.peers$org <- paste(stats.peers$org, "Sch-Based Peers")
-    colnames(stats.peers)[cn(stats.peers)=="schl"] <- "schlname"
+    stopCluster(cl)
+
+    PeerStatsOut$participation <- paste(PeerStatsOut$participation, "Sch Peers")
     
 
 #-------------------------
 ## Compile and save output
 #-------------------------
     
-  # Consolidate the grade variables and update record IDs
-    XXX$grade = ifelse(XXX$fGradeLvl != "All",
-                       XXX$fGradeLvl,
-                       XXX$fGradeGrp_K5_68_HS)
-    # XXX Need to update the id here
+  # Combine all calculations
+    colnames(statsOut)[cn(statsOut) == "descVar"] <- "variable"
+    descStats <- rbind(statsOut, PeerStatsOut)
 
-  descStats    <- rbind(stats.org[, colnames(stats.peers)], stats.peers)
-  descStats$plusminus <- descStats$SE.mean * 1.96
-  descStats <- within(descStats, {
-    id <- paste(org, site, program, schlname, grade, year, variable, sep="_")
-    
-    # Suppress calculations for small or invalid calculations
-    plusminus[nbr.val  < 10] <- NA
-    plusminus[nbr.val == NA] <- NA
-    mean[nbr.val  < 10]      <- NA
-    mean[nbr.val == NA]      <- NA
-  })
+  # Clean and add features to the output
+    descStats$sliceVar[grep("(fGradeLvl)|(fGradeGrp)", descStats$sliceVar)] <- "grade"
+    descStats$id <- with(descStats, paste(participation, p0(sliceVar, ":", sliceVal), year, variable, sep = "_"))
+    descStats$plusminus <- descStats$SE.mean * 1.96
 
-  save(descStats, file = paste0(dataPath, "descStats.Rda"))
+  # Suppress calculations for small or invalid calculations
+    descStats <- within(descStats, {
+      plusminus[nbr.val  < 10] <- NA
+      plusminus[nbr.val == NA] <- NA
+      mean[nbr.val  < 10]      <- NA
+      mean[nbr.val == NA]      <- NA
+    })
 
-  # Subset the file for handling, since the total size is getting to be unnecessarily unwieldy. At one point, this was 47mb. This subsetting halves the size.
-  
-  descStatsOut <- descStats[, c("mean", "nbr.val", "SE.mean", "plusminus", "id")] 
-  write.csv(descStatsOut, file = paste0(dataPath, "descStats.csv"), row.names = F)
+    save(descStats, file = paste0(dataPath, "descStats.Rda"))
 
-  combos <- unique(descStats[, c("org", "site", "program", "schlname", "grade", "year")])
-  combos$id <- paste(combos$org, combos$site, combos$program, combos$grade, combos$year, sep="_")
-  combos$gradefilter <- ifelse(combos$grade!="All" & (combos$site!="All" | combos$program!="All"), 1, 0)
-  rownames(combos) <- NULL
+  # Output cuts of the descriptive output for each partner
+    for (org in allOrgList){
+      myStats <- subset(descStats, grepl(org, participation))
+      d <- subset(myStats, select = c("mean", "nbr.val", "SE.mean", "plusminus", "id"))
+      combos <- unique(myStats[, c("participation", "sliceVal", "sliceVar", "year")])
+      slices <- combos[!grepl("(Non-)|(Peers)", combos$participation), ]
+      slicesXYears <- unique(slices[, c("participation", "sliceVal", "sliceVar")])
+      sliceVars <- unique(slices$sliceVar)
+        # This ordering is intentional, because it allows pasting of the first to columns, based on filtering by the latter two
+      
+      write.csv(d,      file = p0(dataPath, "descStats_", org, ".csv"), row.names = F)
+      for (f in c("combos", "slices", "slicesXYears", "sliceVars")){
+        write.csv(get(f), file = p0(dataPath, f, "_", org, ".csv"), row.names = F)  
+      }
+    }
 
-  combosXYears <- unique(combos[, !grepl("year|id", colnames(combos))])
 
-  orgYearCombos <- data.frame(unique(combos[!grepl("Non-", combos$org), c("org", "year")]))
-    colnames(orgYearCombos) <- c("org", "year")
-
-  orgCombos <- data.frame(org=unique(orgYearCombos[, c("org")]))
-
-  for (f in c("combos", "combosXYears", "orgYearCombos", "orgCombos")){
-    d <- get(f); rownames(d) <- NULL
-    write.csv(d, file = paste0(dataPath, f %&% ".csv"))
-  }
 
