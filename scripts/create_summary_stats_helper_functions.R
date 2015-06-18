@@ -21,6 +21,7 @@
     return(str)
   }
   cn <- function(x) colnames(x) # Just creates a short alias for getting column names
+  grepv <- function(pattern, x) grep(pattern, x, value = T)
   
 #-----------------------------------------------------------------------------------------
 # # # 2. Establish a function to calculate mean, variance, N and se by arbitrary subgroups
