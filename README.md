@@ -29,7 +29,7 @@ Because the data on youth characteristics and outcomes are strongly protected by
 ### More reading/resources
 
 To read more about this project, please see:
-* ["Two-pager" Overview of the Collaborative](https://drive.google.com/file/d/0B6Z01JezxTRUaG1MNTZXSEFaenc/edit?usp=sharing)
+* ["Two-pager" Overview of the Collaborative](https://drive.google.com/drive/folders/0B6Z01JezxTRURS1Ld3BvRlVYVnM)
 * [Charter for the Collaborative](https://drive.google.com/file/d/0B6Z01JezxTRUMDRIazN6N21SQ28/edit?usp=sharing)
 * The Collaborative's [Google Drive folders](https://drive.google.com/#folders/0B6Z01JezxTRUWjhLaXJIOEJlODA), used to store notes, agendas, FAQs (requires permission)
 * The Collaborative's [IdeaScale page](http://ysscollab.ideascale.com/), used to set priorities for project development (requires permission)
